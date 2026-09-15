@@ -12,9 +12,16 @@ This project is **not intended as a production-scale messaging platform**. It is
 ## 📱 Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/Screen1.png" width="240" alt="Splash Screen" />
-  <img src="docs/screenshots/Screen2.png" width="240" alt="Profile Setup" />
-  <img src="docs/screenshots/Screen3.png" width="240" alt="Pairing / QR Connect" />
+  <img src="docs/screenshots/Astra.png" width="180" alt="Astra Brand Icon" />
+</p>
+
+### 🔐 Authentication & Onboarding
+<p align="center">
+  <img src="docs/screenshots/Screen1.png" width="220" alt="Splash Screen" />
+  <img src="docs/screenshots/Phone.png" width="220" alt="Phone Authentication" />
+  <img src="docs/screenshots/OTP.png" width="220" alt="OTP Verification" />
+  <img src="docs/screenshots/Screen2.png" width="220" alt="Profile Setup" />
+  <img src="docs/screenshots/Screen3.png" width="220" alt="Pairing / QR Connect" />
 </p>
 
 ### 📍 Home & Live Location
