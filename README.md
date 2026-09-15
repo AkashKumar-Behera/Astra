@@ -1,4 +1,4 @@
-# astra
+# Astra
 
 A new Flutter project.
 
