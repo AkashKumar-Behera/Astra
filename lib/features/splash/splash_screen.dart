@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/services/auth_service.dart';
+import '../../core/services/update_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../auth/phone_auth_screen.dart';
 import '../auth/profile_setup_screen.dart';
@@ -50,13 +52,145 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    _handleRouting();
+    _checkUpdateAndProceed();
   }
 
-  void _handleRouting() async {
-    await Future.delayed(const Duration(milliseconds: 2600));
+  void _checkUpdateAndProceed() async {
+    // Run update check in parallel with splash delay
+    final updateFuture = UpdateService.checkForUpdate(
+      timeout: const Duration(milliseconds: 1600),
+    );
+    final delayFuture = Future.delayed(const Duration(milliseconds: 2400));
+
+    final results = await Future.wait([updateFuture, delayFuture]);
+    final updateInfo = results[0] as UpdateInfo?;
+
     if (!mounted) return;
 
+    if (updateInfo != null && updateInfo.hasUpdate) {
+      _showUpdateDialog(updateInfo);
+    } else {
+      _proceedToApp();
+    }
+  }
+
+  void _showUpdateDialog(UpdateInfo updateInfo) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AstraTheme.cardSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: AstraTheme.primary.withValues(alpha: 0.5)),
+          ),
+          title: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AstraTheme.primary.withValues(alpha: 0.2),
+                ),
+                child: const Icon(Icons.system_update,
+                    color: AstraTheme.primaryLight, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'New Update Available',
+                style: TextStyle(
+                  color: AstraTheme.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'A new version (v${updateInfo.latestVersion}) is ready. Current version is v${updateInfo.currentVersion}.',
+                style: const TextStyle(
+                  color: AstraTheme.textSecondary,
+                  fontSize: 14,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (updateInfo.releaseNotes != null &&
+                  updateInfo.releaseNotes!.isNotEmpty)
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 120),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AstraTheme.background.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AstraTheme.borderSubtle),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(
+                      updateInfo.releaseNotes!,
+                      style: const TextStyle(
+                        color: AstraTheme.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _proceedToApp();
+              },
+              child: const Text(
+                'Later',
+                style: TextStyle(color: AstraTheme.textMuted),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: const LinearGradient(
+                  colors: [AstraTheme.primary, AstraTheme.secondary],
+                ),
+              ),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                ),
+                onPressed: () async {
+                  final targetUrl = updateInfo.apkDownloadUrl ??
+                      updateInfo.releasePageUrl ??
+                      'https://github.com/AkashKumar-Behera/Astra/releases/latest';
+                  final uri = Uri.parse(targetUrl);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  }
+                },
+                child: const Text(
+                  'Update Now',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _proceedToApp() async {
     final user = FirebaseAuth.instance.currentUser;
     Widget destination = const PhoneAuthScreen();
 
