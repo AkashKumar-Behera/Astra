@@ -1,29 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Astra — Closer. Always. | App Hub</title>
-  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Astra — Closer. Always. | Download App</title>
+  <link rel="shortcut icon" href="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" type="image/x-icon">
+  <meta name="description" content="Astra — Private intimate connection app for couples. Live presence, home & lock screen widgets, status sharing, and instant WhatsApp-style phone pairing.">
+  <link rel="canonical" href="https://astra.croto.in/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  
+
   <style>
     :root {
-      --bg-color: #060514;
-      --card-bg: rgba(18, 14, 38, 0.75);
-      --card-border: rgba(124, 92, 252, 0.25);
-      --primary: #7C5CFC;
-      --primary-glow: rgba(124, 92, 252, 0.45);
-      --secondary: #9B7BFA;
-      --text-primary: #FFFFFF;
-      --text-secondary: #A5A2BD;
-      --text-muted: #6B678A;
-      --android-color: #7C5CFC;
-      --ios-color: #2997FF;
-      --tag-stable: #00E676;
-      --tag-beta: #FFB300;
+      --bg-1: #1e1338;
+      --bg-2: #0d071c;
+      --bg-3: #04020a;
+      --accent: #7C5CFC;
+      --accent-glow: rgba(124, 92, 252, 0.45);
+      --accent-2: #5130d8;
+      --muted: #9aa4b2;
+      --card: rgba(255, 255, 255, 0.03);
+      --glass: rgba(22, 16, 46, 0.7);
+      --radius: 16px;
+      --max-width: 1120px;
     }
 
     * {
@@ -42,505 +42,645 @@
       border-radius: 10px;
     }
     ::-webkit-scrollbar-thumb {
-      background: rgba(124, 92, 252, 0.4);
+      background: rgba(124, 92, 252, 0.45);
       border-radius: 10px;
-      transition: background 0.2s;
     }
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(155, 123, 250, 0.8);
     }
     * {
       scrollbar-width: thin;
-      scrollbar-color: rgba(124, 92, 252, 0.4) rgba(12, 9, 28, 0.6);
+      scrollbar-color: rgba(124, 92, 252, 0.45) rgba(12, 9, 28, 0.6);
     }
 
     html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-primary);
-      font-family: 'Plus Jakarta Sans', sans-serif;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      color: #eaf0ff;
+      background: linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 35%, var(--bg-3) 100%);
+      background-attachment: fixed;
       overflow-x: hidden;
     }
 
-    @media (min-width: 768px) {
-      body {
-        overflow-y: hidden; /* Perfect single viewport on laptops & desktop */
-      }
+    .wrap {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 28px 24px;
     }
 
-    .cosmic-bg {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: 
-        radial-gradient(circle at 50% 10%, rgba(124, 92, 252, 0.2) 0%, transparent 60%),
-        radial-gradient(circle at 85% 75%, rgba(155, 123, 250, 0.1) 0%, transparent 45%),
-        radial-gradient(circle at 15% 65%, rgba(76, 40, 160, 0.15) 0%, transparent 45%),
-        #060514;
-      z-index: -2;
-    }
-
-    .planet-glow {
-      position: fixed;
-      bottom: -280px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 850px;
-      height: 450px;
-      background: radial-gradient(ellipse at center, rgba(124, 92, 252, 0.22) 0%, rgba(6, 5, 20, 0) 70%);
-      border-radius: 50% 50% 0 0;
-      z-index: -1;
-      pointer-events: none;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 840px;
-      padding: 16px 20px;
+    /* Header */
+    .site-header {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      z-index: 1;
-      height: 100vh;
-      max-height: 100vh;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
     }
 
-    /* Main Hero Showcase Card */
-    .hero-card {
-      width: 100%;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 24px;
-      padding: 24px 28px;
-      backdrop-filter: blur(24px);
-      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.55);
+    .brand {
       display: flex;
-      flex-direction: column;
-      max-height: calc(100vh - 56px);
+      gap: 14px;
+      align-items: center;
+      text-decoration: none;
+      color: inherit;
     }
 
-    /* Top Layout: Left Logo + Right Details */
-    .hero-top-row {
+    .brand-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      object-fit: cover;
+      box-shadow: 0 8px 30px rgba(124, 92, 252, 0.5);
+      border: 1px solid rgba(124, 92, 252, 0.4);
+      background: #110c26;
+    }
+
+    .brand-name {
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .nav-links {
       display: flex;
       gap: 20px;
       align-items: center;
-      margin-bottom: 16px;
-      flex-shrink: 0;
     }
 
-    @media (max-width: 640px) {
-      .hero-top-row {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-      }
+    .nav-link {
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: color 0.2s;
     }
 
-    .app-logo-box {
-      width: 78px;
-      height: 78px;
+    .nav-link:hover {
+      color: #fff;
+    }
+
+    .btn-github {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 16px;
       border-radius: 20px;
-      border: 1.5px solid rgba(124, 92, 252, 0.45);
-      box-shadow: 0 8px 24px var(--primary-glow);
-      background: #120e26;
-      flex-shrink: 0;
-      overflow: hidden;
-      display: flex;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
     }
 
-    .app-logo-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .btn-github:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
     }
 
-    .app-info-box {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .app-name-row {
-      display: flex;
+    /* HERO */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 40px;
       align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      margin-top: 16px;
+      margin-bottom: 48px;
     }
 
-    .app-name {
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      color: var(--text-primary);
-    }
-
-    .badge-status {
-      font-size: 10px;
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
       font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      padding: 3px 8px;
-      border-radius: 20px;
-      background: rgba(0, 230, 118, 0.15);
+      padding: 6px 14px;
+      border-radius: 30px;
+      background: rgba(0, 230, 118, 0.12);
       color: #00E676;
       border: 1px solid rgba(0, 230, 118, 0.3);
+      margin-bottom: 14px;
     }
 
-    .app-subtitle {
-      color: var(--primary);
-      font-weight: 600;
-      font-size: 13px;
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: #00E676;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00E676;
     }
 
-    .app-description {
-      color: var(--text-secondary);
-      font-size: 13px;
-      line-height: 1.45;
+    .hero h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      font-weight: 800;
     }
 
-    /* Middle Layout: Horizontal Versions Scrollable Bar */
-    .versions-section {
-      width: 100%;
-      padding-top: 14px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      margin-bottom: 16px;
-      flex-shrink: 0;
+    .hero h1 span {
+      background: linear-gradient(135deg, #FFF 20%, #A5A2BD 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
-    .versions-label-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+    .lead {
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+      margin: 14px 0 24px 0;
+      max-width: 540px;
     }
 
-    .versions-title {
-      font-size: 13px;
+    /* Horizontal Version Selector (Carousel) */
+    .version-selector-container {
+      margin-bottom: 22px;
+    }
+
+    .version-selector-header {
+      font-size: 12px;
       font-weight: 700;
-      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.8px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
     }
 
-    /* Horizontal Versions Chips Scroll */
-    .versions-carousel {
+    .version-scroller {
       display: flex;
       gap: 10px;
       overflow-x: auto;
       padding-bottom: 6px;
-      scroll-behavior: smooth;
     }
 
-    .version-chip {
+    .ver-chip {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 14px;
-      padding: 8px 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 2px;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.25s ease;
-      min-width: 130px;
-    }
-
-    .version-chip:hover {
-      background: rgba(124, 92, 252, 0.12);
-      border-color: rgba(124, 92, 252, 0.5);
-      transform: translateY(-2px);
-    }
-
-    .version-chip.active {
-      background: rgba(124, 92, 252, 0.25);
-      border-color: var(--primary);
-      box-shadow: 0 0 16px rgba(124, 92, 252, 0.35);
-    }
-
-    .chip-tag {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .chip-date {
-      font-size: 10.5px;
-      color: var(--text-muted);
-    }
-
-    /* Bottom Row: Android & iOS Direct Download Buttons */
-    .download-cta-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 16px;
-      flex-shrink: 0;
-    }
-
-    @media (max-width: 600px) {
-      .download-cta-row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .dl-btn {
+      border-radius: 12px;
+      padding: 6px 14px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 12px 18px;
-      border-radius: 16px;
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-      transition: all 0.25s ease;
+      gap: 8px;
       cursor: pointer;
-      text-align: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
     }
 
-    .btn-android {
-      background: linear-gradient(135deg, #7C5CFC 0%, #5227d6 100%);
-      color: #FFFFFF;
-      box-shadow: 0 6px 20px rgba(124, 92, 252, 0.35);
+    .ver-chip:hover {
+      background: rgba(124, 92, 252, 0.15);
+      border-color: rgba(124, 92, 252, 0.4);
+    }
+
+    .ver-chip.active {
+      background: rgba(124, 92, 252, 0.28);
+      border-color: var(--accent);
+      box-shadow: 0 0 16px rgba(124, 92, 252, 0.4);
+    }
+
+    .ver-chip-tag {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .ver-chip-date {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* DOWNLOAD BUTTONS GROUP */
+    .download-group {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 22px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+      color: #fff;
+      box-shadow: 0 8px 25px rgba(124, 92, 252, 0.4);
       border: 1px solid rgba(124, 92, 252, 0.6);
     }
 
-    .btn-android:hover {
+    .btn.primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(124, 92, 252, 0.5);
+      box-shadow: 0 12px 35px rgba(124, 92, 252, 0.6);
     }
 
-    .btn-ios {
-      background: rgba(255, 255, 255, 0.07);
-      color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.16);
+    .btn.outline {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #eaf0ff;
       backdrop-filter: blur(10px);
     }
 
-    .btn-ios:hover {
-      background: rgba(255, 255, 255, 0.14);
+    .btn.outline:hover {
+      background: rgba(255, 255, 255, 0.12);
       transform: translateY(-2px);
       border-color: rgba(255, 255, 255, 0.3);
     }
 
-    /* Release Notes Section at Bottom */
-    .release-details-box {
-      background: rgba(6, 5, 20, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      padding: 14px 18px;
+    .btn-text-block {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      text-align: left;
-      flex: 1;
-      min-height: 0; /* Crucial for child overflow-y to work without expanding page */
+      align-items: flex-start;
+      line-height: 1.2;
+    }
+
+    .btn-sub-label {
+      font-size: 11px;
+      opacity: 0.75;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 14px;
+      display: flex;
+      gap: 12px;
+    }
+
+    /* HERO RIGHT: Interactive Card / Mockup */
+    .hero-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mockup-container {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      border-radius: 28px;
+      background: linear-gradient(180deg, rgba(124, 92, 252, 0.15) 0%, rgba(13, 7, 28, 0.8) 100%);
+      border: 1px solid rgba(124, 92, 252, 0.35);
+      box-shadow: 0 20px 50px rgba(76, 40, 160, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
     }
 
-    .details-header {
+    .mockup-img {
+      width: 190px;
+      height: 190px;
+      border-radius: 24px;
+      object-fit: cover;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+      animation: floatLogo 5s ease-in-out infinite;
+    }
+
+    @keyframes floatLogo {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .quick-stats {
+      display: flex;
+      gap: 20px;
+      background: var(--glass);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 12px 24px;
+      backdrop-filter: blur(14px);
+    }
+
+    .quick-stats div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .quick-stats strong {
+      font-size: 16px;
+      color: #fff;
+    }
+
+    .quick-stats span {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* DETAILS / CHANGELOG BOX */
+    .changelog-section {
+      background: var(--glass);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      margin-bottom: 40px;
+    }
+
+    .changelog-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      flex-wrap: wrap;
-      gap: 6px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      padding-bottom: 8px;
-      flex-shrink: 0;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
     }
 
-    .details-header-title {
-      font-size: 14px;
+    .changelog-head h3 {
+      font-size: 17px;
       font-weight: 700;
-      color: var(--text-primary);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .details-body {
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.5;
+    .changelog-content {
+      font-size: 14px;
+      color: #cbd5e1;
+      line-height: 1.6;
       white-space: pre-line;
-      flex: 1;
+      max-height: 260px;
       overflow-y: auto;
-      padding-right: 8px;
+      padding-right: 10px;
     }
 
-    .details-body h2, .details-body h3 {
-      color: var(--text-primary);
-      margin: 12px 0 6px 0;
+    .changelog-content h2, .changelog-content h3 {
+      color: #fff;
       font-size: 15px;
+      margin: 14px 0 6px 0;
     }
 
-    .details-body ul {
-      margin-left: 20px;
+    /* FEATURES GRID */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 48px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius);
+      padding: 20px;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(124, 92, 252, 0.4);
+    }
+
+    .feature-icon {
+      font-size: 24px;
       margin-bottom: 10px;
     }
 
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
     footer {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 24px;
       text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 28px;
+      }
+      .hero-right {
+        order: -1;
+      }
+      .features {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
 
-  <div class="cosmic-bg"></div>
-  <div class="planet-glow"></div>
+  <div class="wrap">
+    <!-- Header -->
+    <header class="site-header">
+      <a href="#" class="brand">
+        <img src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" alt="Astra logo" class="brand-icon">
+        <div class="brand-text">
+          <div class="brand-name">Astra</div>
+          <div class="brand-sub">Closer. Always. • Couples Space</div>
+        </div>
+      </a>
 
-  <div class="container">
-    
-    <!-- Main Showcase Card -->
-    <div class="hero-card">
-      
-      <!-- Top: Left Logo + Right Details -->
-      <div class="hero-top-row">
-        <div class="app-logo-box">
-          <img src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" alt="Astra Logo" onerror="this.src='../assets/images/Astra.png'">
-        </div>
-        <div class="app-info-box">
-          <div class="app-name-row">
-            <span class="app-name">Astra</span>
-            <span class="badge-status" id="header-badge">Latest Stable</span>
-          </div>
-          <div class="app-tagline">Closer. Always. • Private Space for Couples</div>
-          <div class="app-description">
-            Private intimate connection app featuring real-time presence, widgets, and WhatsApp-style instant mobile number pairing.
-          </div>
-        </div>
-      </div>
-
-      <!-- Middle: Horizontal Versions Scrollbar -->
-      <div class="versions-section">
-        <div class="versions-label-row">
-          <span class="versions-title">Select Version</span>
-          <span id="selected-ver-indicator" style="font-size: 12px; color: var(--primary); font-weight: 600;">Latest</span>
-        </div>
-        
-        <div id="versions-carousel" class="versions-carousel">
-          <!-- Dynamically populated version chips -->
-          <div style="color: var(--text-muted); font-size: 13px; padding: 10px 0;">Loading versions...</div>
-        </div>
-      </div>
-
-      <!-- Bottom: Android & iOS Direct Download Buttons -->
-      <div class="download-cta-row">
-        <a id="btn-android" href="#" class="dl-btn btn-android" download>
-          <svg class="btn-svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.411 13.844 8.125 12 8.125c-1.844 0-3.5847.286-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+      <nav class="nav-links">
+        <a href="#changelog" class="nav-link">Releases</a>
+        <a href="#features" class="nav-link">Features</a>
+        <a href="https://github.com/AkashKumar-Behera/Astra" target="_blank" class="btn-github">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
-          <span>Download Android APK</span>
-          <span id="apk-size-label" style="font-size: 12px; opacity: 0.85;">(Loading...)</span>
+          <span>GitHub</span>
         </a>
-        <a id="btn-ios" href="#" class="dl-btn btn-ios" download>
-          <svg class="btn-svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z"/>
-          </svg>
-          <span>Download iOS IPA</span>
-          <span id="ipa-size-label" style="font-size: 12px; opacity: 0.85;">(Loading...)</span>
-        </a>
-      </div>
+      </nav>
+    </header>
 
-      <!-- Details & Release Notes for Selected Version -->
-      <div class="release-details-box">
-        <div class="details-header">
-          <div class="details-header-title">
-            <span>Changelog for</span>
-            <span id="notes-version-tag" style="color: var(--primary);">v1.0.2</span>
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-left">
+        <div class="badge" id="release-badge">
+          <span class="status-dot"></span>
+          <span id="badge-version-text">Checking latest build...</span>
+        </div>
+        <h1>Astra — <span>Your intimate pocket space</span></h1>
+        <p class="lead">
+          Connect with your favorite person. Real-time widget status, battery & distance sync, instant WhatsApp-style phone pairing, and private memories.
+        </p>
+
+        <!-- Horizontal Version Scroller -->
+        <div class="version-selector-container">
+          <div class="version-selector-header">
+            <span>Select Available Release</span>
+            <span id="active-release-title" style="color:var(--accent);">v1.0.2 Stable</span>
           </div>
-          <span id="notes-date" style="font-size: 12px; color: var(--text-muted);">Syncing...</span>
+          <div id="versions-carousel" class="version-scroller">
+            <div style="font-size:12px; color:var(--muted);">Loading versions from GitHub...</div>
+          </div>
         </div>
-        <div id="notes-content" class="details-body">
-          Fetching release notes from GitHub...
+
+        <!-- Download Buttons -->
+        <div class="download-group">
+          <!-- Android Button -->
+          <a class="btn primary" id="btn-download-android" href="#" download>
+            <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.411 13.844 8.125 12 8.125c-1.844 0-3.5847.286-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+            </svg>
+            <div class="btn-text-block">
+              <span>Download for Android</span>
+              <span class="btn-sub-label" id="android-sub-label">Release APK (~20 MB)</span>
+            </div>
+          </a>
+
+          <!-- iOS Button -->
+          <a class="btn outline" id="btn-download-ios" href="#" download>
+            <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z"/>
+            </svg>
+            <div class="btn-text-block">
+              <span>Download for iOS</span>
+              <span class="btn-sub-label" id="ios-sub-label">Sideload IPA (AltStore / TrollStore)</span>
+            </div>
+          </a>
+        </div>
+
+        <div class="meta">
+          <span>🔒 Direct GitHub Releases</span> • <span>✨ No Ads, 100% Free</span> • <span>⚡ Instant Phone Search</span>
         </div>
       </div>
 
-    </div>
+      <!-- Right Mockup / Stats -->
+      <aside class="hero-right">
+        <div class="mockup-container">
+          <img src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" alt="Astra App Logo" class="mockup-img">
+        </div>
+        <div class="quick-stats">
+          <div><strong>4.9 ★</strong><span>Rating</span></div>
+          <div><strong>~20 MB</strong><span>Lean APK</span></div>
+          <div><strong>v1.0.2</strong><span>Current Build</span></div>
+        </div>
+      </aside>
+    </section>
 
-    <footer>Closer Matters • Astra 2026 • Live on astra.croto.in</footer>
+    <!-- Changelog / Selected Version Details -->
+    <section id="changelog" class="changelog-section">
+      <div class="changelog-head">
+        <h3>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>Release Notes for <span id="notes-ver-name" style="color:var(--accent);">v1.0.2</span></span>
+        </h3>
+        <span id="notes-pub-date" style="font-size:12px; color:var(--muted);">Syncing...</span>
+      </div>
+      <div id="notes-content" class="changelog-content">
+        Loading latest release changelog from GitHub...
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="features">
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3>WhatsApp-style Pairing</h3>
+        <p>No more complicated pairing codes. Simply enter their 10-digit mobile number to connect instantly.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">✨</div>
+        <h3>Lock Screen Widgets</h3>
+        <p>Stay close all day with customizable interactive status and distance widgets for Android & iOS.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>End-to-End Privacy</h3>
+        <p>Your private space is solely between you and your partner. Stored securely on Firebase infrastructure.</p>
+      </div>
+    </section>
+
+    <footer>
+      Closer Matters • Astra 2026 • Distributed directly via astra.croto.in
+    </footer>
   </div>
 
   <script>
     const GITHUB_REPO = 'AkashKumar-Behera/Astra';
-    const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
+    const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
 
-    let releasesList = [];
-    let selectedRelease = null;
+    let allReleases = [];
 
-    async function init() {
+    async function loadReleases() {
       try {
-        const res = await fetch(API_URL);
-        if (!res.ok) throw new Error('Failed to fetch releases');
+        const res = await fetch(RELEASES_API);
+        if (!res.ok) throw new Error('Failed to load GitHub releases');
         const data = await res.json();
 
-        releasesList = data.filter(r => !r.draft);
+        allReleases = data.filter(r => !r.draft);
 
-        if (releasesList.length === 0) {
-          document.getElementById('versions-carousel').innerHTML = '<div style="color:var(--text-muted); font-size:13px;">No releases available.</div>';
+        if (allReleases.length === 0) {
+          document.getElementById('versions-carousel').innerHTML = '<span style="font-size:12px; color:var(--muted);">No releases found.</span>';
           return;
         }
 
         // Render Version Chips
-        renderVersionChips();
+        renderVersionScroller();
 
-        // Select latest release by default
-        selectRelease(releasesList[0]);
+        // Select first release
+        selectRelease(allReleases[0]);
 
       } catch (err) {
-        document.getElementById('versions-carousel').innerHTML = `
-          <a href="https://github.com/${GITHUB_REPO}/releases" target="_blank" style="color:var(--primary); font-size:13px; text-decoration:none;">
-            View Releases on GitHub ↗
-          </a>
+        document.getElementById('badge-version-text').innerText = 'v1.0.2 Stable';
+        document.getElementById('notes-content').innerHTML = `
+          Visit <a href="https://github.com/${GITHUB_REPO}/releases" target="_blank" style="color:var(--accent); text-decoration:none;">GitHub Releases</a> to view and download all versions.
         `;
       }
     }
 
-    function renderVersionChips() {
+    function renderVersionScroller() {
       const carousel = document.getElementById('versions-carousel');
       carousel.innerHTML = '';
 
-      releasesList.forEach((rel, index) => {
-        const chip = document.createElement('div');
-        chip.className = `version-chip ${index === 0 ? 'active' : ''}`;
-        chip.id = `chip-${rel.tag_name}`;
-
+      allReleases.forEach((rel, idx) => {
         const isBeta = rel.prerelease || rel.tag_name.toLowerCase().includes('beta');
-        const dateStr = rel.published_at 
-          ? new Date(rel.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        const d = rel.published_at 
+          ? new Date(rel.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           : '';
 
+        const chip = document.createElement('div');
+        chip.className = `ver-chip ${idx === 0 ? 'active' : ''}`;
+        chip.id = `chip-${rel.tag_name}`;
         chip.innerHTML = `
-          <div style="display:flex; align-items:center; gap:6px; width:100%;">
-            <span class="chip-tag">${rel.tag_name}</span>
-            ${isBeta ? '<span style="color:#FFB300; font-size:10px;">🧪</span>' : ''}
-          </div>
-          <span class="chip-date">${dateStr}</span>
+          <span class="ver-chip-tag">${rel.tag_name}</span>
+          ${isBeta ? '<span style="font-size:10px; color:#FFB300;">🧪</span>' : ''}
+          <span class="ver-chip-date">${d}</span>
         `;
 
         chip.onclick = () => {
-          document.querySelectorAll('.version-chip').forEach(c => c.classList.remove('active'));
+          document.querySelectorAll('.ver-chip').forEach(c => c.classList.remove('active'));
           chip.classList.add('active');
           selectRelease(rel);
         };
@@ -550,50 +690,47 @@
     }
 
     function selectRelease(rel) {
-      selectedRelease = rel;
-
       const isBeta = rel.prerelease || rel.tag_name.toLowerCase().includes('beta');
-      document.getElementById('selected-ver-indicator').innerText = rel.tag_name + (isBeta ? ' (Beta)' : ' (Stable)');
-      document.getElementById('notes-version-tag').innerText = rel.tag_name;
+      document.getElementById('badge-version-text').innerText = `${rel.tag_name} • ${isBeta ? 'Beta' : 'Latest Stable'}`;
+      document.getElementById('active-release-title').innerText = `${rel.tag_name} ${isBeta ? '(Beta)' : '(Stable)'}`;
+      document.getElementById('notes-ver-name').innerText = rel.tag_name;
 
       if (rel.published_at) {
-        const d = new Date(rel.published_at).toLocaleDateString('en-US', {
+        const fullDate = new Date(rel.published_at).toLocaleDateString('en-US', {
           month: 'short', day: 'numeric', year: 'numeric'
         });
-        document.getElementById('notes-date').innerText = d;
+        document.getElementById('notes-pub-date').innerText = fullDate;
       }
 
-      // Format & show changelog
+      // Notes
       document.getElementById('notes-content').innerHTML = rel.body 
         ? formatMarkdown(rel.body) 
-        : 'No specific release notes provided for this release.';
+        : 'Performance improvements and bug fixes.';
 
-      // Find Assets
-      const apkAsset = rel.assets?.find(a => a.name.endsWith('.apk'));
-      const ipaAsset = rel.assets?.find(a => a.name.endsWith('.ipa'));
+      // Assets
+      const apk = rel.assets?.find(a => a.name.endsWith('.apk'));
+      const ipa = rel.assets?.find(a => a.name.endsWith('.ipa'));
 
-      const btnAndroid = document.getElementById('btn-android');
-      const sizeAndroid = document.getElementById('apk-size-label');
-      if (apkAsset) {
-        btnAndroid.href = apkAsset.browser_download_url;
-        const mb = (apkAsset.size / (1024 * 1024)).toFixed(1);
-        sizeAndroid.innerText = `(${mb} MB)`;
-        btnAndroid.style.display = 'flex';
+      const btnAndroid = document.getElementById('btn-download-android');
+      const labelAndroid = document.getElementById('android-sub-label');
+      if (apk) {
+        btnAndroid.href = apk.browser_download_url;
+        const mb = (apk.size / (1024 * 1024)).toFixed(1);
+        labelAndroid.innerText = `Release APK (${mb} MB)`;
       } else {
         btnAndroid.href = rel.html_url;
-        sizeAndroid.innerText = '(View on GitHub)';
+        labelAndroid.innerText = 'View on GitHub';
       }
 
-      const btnIos = document.getElementById('btn-ios');
-      const sizeIos = document.getElementById('ipa-size-label');
-      if (ipaAsset) {
-        btnIos.href = ipaAsset.browser_download_url;
-        const mb = (ipaAsset.size / (1024 * 1024)).toFixed(1);
-        sizeIos.innerText = `(${mb} MB)`;
-        btnIos.style.display = 'flex';
+      const btnIos = document.getElementById('btn-download-ios');
+      const labelIos = document.getElementById('ios-sub-label');
+      if (ipa) {
+        btnIos.href = ipa.browser_download_url;
+        const mb = (ipa.size / (1024 * 1024)).toFixed(1);
+        labelIos.innerText = `Sideload IPA (${mb} MB)`;
       } else {
         btnIos.href = rel.html_url;
-        sizeIos.innerText = '(View on GitHub)';
+        labelIos.innerText = 'View on GitHub';
       }
     }
 
@@ -602,13 +739,13 @@
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/^### (.*$)/gim, '<h3 style="color:var(--text-primary); margin:10px 0 4px 0; font-size:14px;">$1</h3>')
-        .replace(/^## (.*$)/gim, '<h2 style="color:var(--text-primary); margin:12px 0 6px 0; font-size:16px;">$1</h2>')
-        .replace(/\*\*(.*?)\*\*/gim, '<strong style="color:var(--text-primary);">$1</strong>')
+        .replace(/^### (.*$)/gim, '<h3 style="color:#fff; margin:12px 0 4px 0; font-size:14px;">$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2 style="color:#fff; margin:14px 0 6px 0; font-size:16px;">$1</h2>')
+        .replace(/\*\*(.*?)\*\*/gim, '<strong style="color:#fff;">$1</strong>')
         .replace(/^\- (.*$)/gim, '<li style="margin-left:18px; margin-bottom:4px;">$1</li>');
     }
 
-    init();
+    loadReleases();
   </script>
 </body>
 </html>
