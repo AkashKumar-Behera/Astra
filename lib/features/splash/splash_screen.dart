@@ -7,7 +7,7 @@ import '../../core/services/update_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../auth/phone_auth_screen.dart';
 import '../auth/profile_setup_screen.dart';
-import '../auth/qr_pairing_screen.dart';
+import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -199,7 +199,10 @@ class _SplashScreenState extends State<SplashScreen>
       if (profile != null &&
           profile['name'] != null &&
           (profile['name'] as String).isNotEmpty) {
-        destination = QrPairingScreen(userName: profile['name']);
+        destination = HomeScreen(
+          userName: profile['name'],
+          photoUrl: profile['photo_url'] as String?,
+        );
       } else {
         destination = ProfileSetupScreen(
           phoneNumber: user.phoneNumber ?? '',

@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/astra_theme.dart';
+import '../home/home_screen.dart';
 import 'profile_setup_screen.dart';
-import 'qr_pairing_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
@@ -131,11 +131,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         if (profile != null &&
             profile['name'] != null &&
             (profile['name'] as String).isNotEmpty) {
-          // Existing User: Navigate to Pairing Screen or Home
+          // Existing User: Navigate to HomeScreen
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (context) => QrPairingScreen(
+              builder: (context) => HomeScreen(
                 userName: profile['name'],
+                photoUrl: profile['photo_url'] as String?,
               ),
             ),
             (route) => false,

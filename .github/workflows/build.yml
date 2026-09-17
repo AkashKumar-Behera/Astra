@@ -153,6 +153,13 @@ jobs:
             echo "type_label=✨ Stable Release" >> $GITHUB_OUTPUT
           fi
 
+      - name: Inspect and Prepare Release Assets
+        run: |
+          mkdir -p release-dist
+          find release-assets -type f \( -name "*.apk" -o -name "*.ipa" \) -exec cp {} release-dist/ \;
+          echo "Assets ready for release:"
+          ls -la release-dist
+
       - name: Create / Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -168,8 +175,6 @@ jobs:
             - Signed Android APK ready for direct install.
             - Unsigned iOS IPA ready for Sideloadly / AltStore / TrollStore.
           generate_release_notes: true
-          files: |
-            release-assets/*.apk
-            release-assets/*.ipa
+          files: release-dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

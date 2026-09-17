@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/astra_theme.dart';
-import 'qr_pairing_screen.dart';
+import '../home/home_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final String phoneNumber;
@@ -89,11 +89,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      // Navigate to Screen 3 (QR Pairing)
+      // Navigate directly to HomeScreen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => QrPairingScreen(
+          builder: (context) => HomeScreen(
             userName: name,
+            photoUrl: photoUrl,
           ),
         ),
       );
