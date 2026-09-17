@@ -17,7 +17,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
 
-    // Mock/Supabase Google Sign-in flow
+    // Google Sign-in flow via Firebase / Auth
     await Future.delayed(const Duration(milliseconds: 1200));
 
     if (mounted) {

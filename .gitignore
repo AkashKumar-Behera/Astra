@@ -50,4 +50,7 @@ ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 lib/core/config/env.dart
 *.env*
+*.keystore
+*.jks
+android/key.properties
 

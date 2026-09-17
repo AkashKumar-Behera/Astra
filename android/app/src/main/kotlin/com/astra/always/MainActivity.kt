@@ -1,4 +1,4 @@
-package com.example.astra
+package com.astra.always
 
 import io.flutter.embedding.android.FlutterActivity
 
