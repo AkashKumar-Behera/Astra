@@ -176,24 +176,26 @@ jobs:
         run: |
           CHANGES="${{ inputs.release_notes }}"
           if [ -z "$CHANGES" ] || [ "$CHANGES" = "Automated build from GitHub Actions." ]; then
-            CHANGES="### 🚀 What's New:
-- **WhatsApp Style Phone Search**: Connect with anyone by searching their 10-digit mobile number directly. No complex pairing codes required!
+            CHANGES=$(cat << 'EOF'
+### 🚀 What's New:
+- **WhatsApp Style Phone Search**: Connect with anyone by searching their 10-digit mobile number directly.
 - **Lean APK Builds**: Android app package optimized down to ~20MB (arm64-v8a) from 73MB.
 - **App Store Web Hub**: Dynamic web page displaying all versions with direct APK/IPA downloads.
 
 ### 🐛 Bug Fixes & Improvements:
-- **Android In-App Update**: Fixed 'Update Now' button not opening in external browser/downloader due to Android 11+ Package Visibility.
+- **Android In-App Update**: Fixed 'Update Now' button opening in browser.
 - **iOS Phone Auth Crash**: Fixed unhandled URL scheme on iPhone by configuring CFBundleURLSchemes.
-- **Direct Home Landing**: Bypassed onboarding QR screen; users land directly into HomeScreen."
+- **Direct Home Landing**: Bypassed onboarding QR screen; users land directly into HomeScreen.
+EOF
+)
           fi
 
           BODY_CONTENT="## ${LABEL}: Astra ${TAG_NAME}
 
 ${CHANGES}
 
----
-- Commit: \`${{ github.sha }}\`
-- Ready for Android direct install and iOS Sideloadly / AltStore / TrollStore."
+Commit: \`${{ github.sha }}\`
+Ready for Android direct install and iOS Sideloadly / AltStore / TrollStore."
 
           PRERELEASE_FLAG=""
           if [ "$IS_PRERELEASE" = "true" ]; then
