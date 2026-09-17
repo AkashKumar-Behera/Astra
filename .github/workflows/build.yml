@@ -2,10 +2,23 @@ name: Build & Release APK and IPA
 
 on:
   push:
-    branches: [ main ]
     tags:
       - 'v*'
+    branches:
+      - main
   workflow_dispatch:
+    inputs:
+      release_title:
+        description: 'Release Title (e.g. Astra v1.0.1)'
+        required: false
+        default: ''
+      release_notes:
+        description: 'Release Notes / Changelog'
+        required: false
+        default: 'Automated personal build from GitHub Actions.'
+
+permissions:
+  contents: write
 
 jobs:
   build-android:
@@ -54,14 +67,19 @@ jobs:
       - name: Build Release APK
         run: flutter build apk --release
 
+      - name: Rename APK with Tag or Run Number
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME:-v1.0.0}"
+          cp build/app/outputs/flutter-apk/app-release.apk "Astra-${TAG_NAME}.apk"
+
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: astra-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: Astra-*.apk
 
   build-ios:
-    name: Build iOS (No-Codesign / Unsigned IPA)
+    name: Build iOS (Unsigned IPA)
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -85,14 +103,52 @@ jobs:
       - name: Build iOS without code signing
         run: flutter build ios --release --no-codesign
 
-      - name: Create Payload Directory for IPA
+      - name: Package Payload to IPA
         run: |
+          TAG_NAME="${GITHUB_REF_NAME:-v1.0.0}"
           mkdir -p Payload
           cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r astra-unsigned.ipa Payload
+          zip -r "Astra-${TAG_NAME}-unsigned.ipa" Payload
 
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: astra-unsigned-ipa
-          path: astra-unsigned.ipa
+          path: Astra-*-unsigned.ipa
+
+  publish-release:
+    name: Auto Publish GitHub Release
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create / Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ inputs.release_title || github.ref_name }}
+          body: |
+            ## 🚀 Astra Release ${{ github.ref_name }}
+            
+            ${{ inputs.release_notes || '### Changes in this build:' }}
+            
+            - Automatic CI/CD build from commit: `${{ github.sha }}`
+            - Signed Android APK ready for direct install.
+            - Unsigned iOS IPA ready for Sideloadly / AltStore / TrollStore.
+          generate_release_notes: true
+          files: |
+            release-assets/*.apk
+            release-assets/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
