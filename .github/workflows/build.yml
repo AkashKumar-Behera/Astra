@@ -183,14 +183,16 @@ jobs:
           echo "Publishing release for $TAG_NAME with assets:"
           ls -la release-dist/
 
-          # Check if release already exists
+          # Check if release already exists (including drafts)
           if gh release view "$TAG_NAME" > /dev/null 2>&1; then
-            echo "Release $TAG_NAME exists. Uploading assets with clobber..."
+            echo "Release $TAG_NAME exists. Uploading assets and publishing (undraft)..."
             gh release upload "$TAG_NAME" release-dist/* --clobber
+            gh release edit "$TAG_NAME" --draft=false $PRERELEASE_FLAG
           else
-            echo "Creating new release $TAG_NAME..."
+            echo "Creating and publishing release $TAG_NAME..."
             gh release create "$TAG_NAME" release-dist/* \
               --title "$TITLE" \
               --notes "$BODY_CONTENT" \
+              --draft=false \
               $PRERELEASE_FLAG
           fi
