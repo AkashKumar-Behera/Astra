@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Astra — Closer. Always. | Download</title>
+  <title>Astra — App Store & Download Hub</title>
   <link rel="icon" type="image/png" href="../assets/images/Astra.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,16 +12,18 @@
   <style>
     :root {
       --bg-color: #060514;
-      --card-bg: rgba(18, 14, 38, 0.7);
-      --card-border: rgba(124, 92, 252, 0.25);
+      --card-bg: rgba(18, 14, 38, 0.75);
+      --card-border: rgba(124, 92, 252, 0.22);
       --primary: #7C5CFC;
-      --primary-glow: rgba(124, 92, 252, 0.45);
+      --primary-glow: rgba(124, 92, 252, 0.4);
       --secondary: #9B7BFA;
       --text-primary: #FFFFFF;
       --text-secondary: #A5A2BD;
       --text-muted: #6B678A;
       --android-green: #3DDC84;
       --apple-blue: #2997FF;
+      --tag-beta: #FFB300;
+      --tag-stable: #00E676;
     }
 
     * {
@@ -42,7 +44,6 @@
       overflow-x: hidden;
     }
 
-    /* Cosmic Background & Planet Glow */
     .cosmic-bg {
       position: fixed;
       top: 0;
@@ -50,9 +51,9 @@
       width: 100vw;
       height: 100vh;
       background: 
-        radial-gradient(circle at 50% 15%, rgba(124, 92, 252, 0.18) 0%, transparent 55%),
-        radial-gradient(circle at 80% 80%, rgba(155, 123, 250, 0.12) 0%, transparent 45%),
-        radial-gradient(circle at 20% 70%, rgba(76, 40, 160, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 50% 12%, rgba(124, 92, 252, 0.2) 0%, transparent 55%),
+        radial-gradient(circle at 85% 75%, rgba(155, 123, 250, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 15% 65%, rgba(76, 40, 160, 0.15) 0%, transparent 40%),
         #060514;
       z-index: -2;
     }
@@ -64,7 +65,7 @@
       transform: translateX(-50%);
       width: 800px;
       height: 400px;
-      background: radial-gradient(ellipse at center, rgba(124, 92, 252, 0.25) 0%, rgba(6, 5, 20, 0) 70%);
+      background: radial-gradient(ellipse at center, rgba(124, 92, 252, 0.22) 0%, rgba(6, 5, 20, 0) 70%);
       border-radius: 50% 50% 0 0;
       z-index: -1;
       pointer-events: none;
@@ -72,213 +73,262 @@
 
     .container {
       width: 100%;
-      max-width: 720px;
-      padding: 48px 24px 64px 24px;
+      max-width: 820px;
+      padding: 40px 20px 60px 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      text-align: center;
       z-index: 1;
     }
 
-    /* Logo & Header */
-    .logo-container {
-      width: 88px;
-      height: 88px;
-      border-radius: 50%;
+    /* App Store Banner Header */
+    .app-header {
       display: flex;
       align-items: center;
-      justify-content: center;
-      background: rgba(124, 92, 252, 0.15);
-      border: 1px solid rgba(124, 92, 252, 0.4);
-      box-shadow: 0 0 35px var(--primary-glow);
-      margin-bottom: 24px;
-      animation: pulseGlow 4s infinite alternate ease-in-out;
-    }
-
-    @keyframes pulseGlow {
-      0% { box-shadow: 0 0 25px rgba(124, 92, 252, 0.3); }
-      100% { box-shadow: 0 0 45px rgba(124, 92, 252, 0.6); }
-    }
-
-    .logo-img {
-      width: 68px;
-      height: 68px;
-      border-radius: 50%;
-      object-fit: cover;
-    }
-
-    h1 {
-      font-size: 40px;
-      font-weight: 800;
-      letter-spacing: 2px;
-      background: linear-gradient(135deg, #FFFFFF 40%, #D3C5FF 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 6px;
-    }
-
-    .tagline {
-      font-size: 15px;
-      letter-spacing: 3px;
-      color: var(--secondary);
-      text-transform: uppercase;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-
-    .desc {
-      font-size: 16px;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      max-width: 500px;
-      margin-bottom: 36px;
-    }
-
-    /* Version Badge */
-    .badge-container {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(124, 92, 252, 0.12);
-      border: 1px solid rgba(124, 92, 252, 0.35);
-      padding: 6px 16px;
-      border-radius: 30px;
-      margin-bottom: 32px;
-      font-size: 13px;
-      color: var(--text-primary);
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      background-color: #00E676;
-      border-radius: 50%;
-      box-shadow: 0 0 8px #00E676;
-    }
-
-    /* Download Action Buttons */
-    .download-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 24px;
       width: 100%;
-      margin-bottom: 40px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 28px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+      margin-bottom: 32px;
+      text-align: left;
     }
 
     @media (max-width: 600px) {
-      .download-grid {
-        grid-template-columns: 1fr;
+      .app-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 24px;
       }
     }
 
-    .download-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 24px 20px;
+    .app-icon {
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
+      border: 1.5px solid rgba(124, 92, 252, 0.4);
+      box-shadow: 0 10px 30px var(--primary-glow);
+      object-fit: cover;
+      background: #120e26;
+      flex-shrink: 0;
+    }
+
+    .app-details {
+      flex: 1;
+    }
+
+    .app-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
       display: flex;
-      flex-direction: column;
       align-items: center;
-      backdrop-filter: blur(16px);
-      text-decoration: none;
-      transition: all 0.3s ease;
-      cursor: pointer;
-      position: relative;
-      overflow: hidden;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    .download-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--primary);
-      box-shadow: 0 12px 30px rgba(124, 92, 252, 0.25);
+    .tag-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 4px 10px;
+      border-radius: 20px;
     }
 
-    .card-icon {
-      font-size: 32px;
-      margin-bottom: 12px;
+    .tag-stable {
+      background: rgba(0, 230, 118, 0.15);
+      color: #00E676;
+      border: 1px solid rgba(0, 230, 118, 0.3);
     }
 
-    .card-title {
+    .app-tagline {
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 14px;
+      margin: 4px 0 8px 0;
+    }
+
+    .app-desc {
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    /* Tabs Header */
+    .section-title {
+      width: 100%;
+      text-align: left;
       font-size: 18px;
       font-weight: 700;
       color: var(--text-primary);
-      margin-bottom: 4px;
-    }
-
-    .card-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
       margin-bottom: 16px;
-    }
-
-    .btn-action {
-      width: 100%;
-      padding: 12px 18px;
-      border-radius: 12px;
-      font-size: 14px;
-      font-weight: 700;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
+    }
+
+    .filter-btn-group {
+      display: flex;
       gap: 8px;
-      transition: background 0.2s;
     }
 
-    .btn-android {
-      background: linear-gradient(135deg, #7C5CFC, #613DC1);
-      color: #FFFFFF;
-      box-shadow: 0 4px 15px rgba(124, 92, 252, 0.4);
+    .filter-chip {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-secondary);
+      padding: 5px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
-    .btn-ios {
-      background: rgba(255, 255, 255, 0.08);
-      color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+    .filter-chip.active {
+      background: var(--primary);
+      color: #FFF;
+      border-color: var(--primary);
     }
 
-    .btn-ios:hover {
-      background: rgba(255, 255, 255, 0.14);
-    }
-
-    /* Changelog Card */
-    .changelog-card {
+    /* Release Cards List */
+    .releases-list {
       width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .version-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 20px;
-      padding: 24px;
-      text-align: left;
+      padding: 22px;
       backdrop-filter: blur(16px);
-      margin-bottom: 48px;
+      text-align: left;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
     }
 
-    .changelog-header {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin-bottom: 12px;
+    .version-card:hover {
+      border-color: var(--primary);
+      box-shadow: 0 8px 25px rgba(124, 92, 252, 0.2);
+    }
+
+    .card-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    .changelog-content {
+    .ver-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ver-number {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .ver-date {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .notes-box {
+      background: rgba(6, 5, 20, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 12px 14px;
       font-size: 13px;
       color: var(--text-secondary);
-      line-height: 1.6;
+      line-height: 1.5;
       white-space: pre-line;
-      max-height: 200px;
+      max-height: 140px;
       overflow-y: auto;
+    }
+
+    /* Direct Download Actions in Cards */
+    .actions-grid {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .dl-btn-android {
+      background: linear-gradient(135deg, #7C5CFC, #5833c9);
+      color: #FFF;
+      box-shadow: 0 4px 14px rgba(124, 92, 252, 0.3);
+    }
+
+    .dl-btn-android:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(124, 92, 252, 0.5);
+    }
+
+    .dl-btn-ios {
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFF;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .dl-btn-ios:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .loading-spinner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px;
+      color: var(--text-secondary);
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(124, 92, 252, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s infinite linear;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
 
     footer {
       font-size: 12px;
-      letter-spacing: 2px;
       color: var(--text-muted);
-      text-transform: uppercase;
       margin-top: auto;
-      padding-bottom: 24px;
+      padding: 20px 0;
     }
   </style>
 </head>
@@ -288,102 +338,170 @@
   <div class="planet-glow"></div>
 
   <div class="container">
-    <div class="logo-container">
-      <img class="logo-img" src="../assets/images/Astra.png" alt="Astra Logo" onerror="this.src='../Astra.png'">
-    </div>
-
-    <h1>Astra</h1>
-    <div class="tagline">Closer. Always.</div>
-    <p class="desc">Private connection for couples. Real-time presence, widgets, status sharing, and private memories.</p>
-
-    <div class="badge-container">
-      <span class="status-dot"></span>
-      <span id="version-text">Checking latest version...</span>
-    </div>
-
-    <div class="download-grid">
-      <!-- Android Card -->
-      <div class="download-card">
-        <div class="card-icon">🤖</div>
-        <div class="card-title">Android</div>
-        <div class="card-subtitle">Signed Production APK</div>
-        <a id="apk-link" href="https://github.com/AkashKumar-Behera/Astra/releases/latest" class="btn-action btn-android" download>
-          <span>Download .APK</span>
-          <span>↓</span>
-        </a>
-      </div>
-
-      <!-- iOS Card -->
-      <div class="download-card">
-        <div class="card-icon">🍏</div>
-        <div class="card-title">iOS (Sideload)</div>
-        <div class="card-subtitle">AltStore / TrollStore / Sideloadly</div>
-        <a id="ipa-link" href="https://github.com/AkashKumar-Behera/Astra/releases/latest" class="btn-action btn-ios" download>
-          <span>Download .IPA</span>
-          <span>↓</span>
-        </a>
+    <!-- App Store Banner -->
+    <div class="app-header">
+      <img class="app-icon" src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" alt="Astra Logo" onerror="this.src='../assets/images/Astra.png'">
+      <div class="app-details">
+        <div class="app-title">
+          Astra
+          <span class="tag-badge tag-stable" id="header-status">Latest</span>
+        </div>
+        <div class="app-tagline">Closer. Always. • Private Space for Couples</div>
+        <div class="app-desc">
+          High-performance connection app featuring realtime presence, lock screen widgets, and direct mobile-number pairing. Free of ads and open for private testing.
+        </div>
       </div>
     </div>
 
-    <div class="changelog-card">
-      <div class="changelog-header">
-        <span>What's New in Latest Release</span>
-        <span id="release-date" style="font-size: 12px; color: var(--text-muted);">Syncing...</span>
-      </div>
-      <div id="changelog-text" class="changelog-content">
-        Fetching changes from GitHub Releases...
+    <!-- Versions Hub Header -->
+    <div class="section-title">
+      <span>Available Releases</span>
+      <div class="filter-btn-group">
+        <button class="filter-chip active" onclick="filterReleases('all', this)">All</button>
+        <button class="filter-chip" onclick="filterReleases('stable', this)">Stable</button>
+        <button class="filter-chip" onclick="filterReleases('beta', this)">Beta</button>
       </div>
     </div>
 
-    <footer>Closer Matters • Astra 2026</footer>
+    <!-- Dynamic Releases Container -->
+    <div id="releases-container" class="releases-list">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <span>Syncing live releases from GitHub...</span>
+      </div>
+    </div>
+
+    <footer>Closer Matters • Astra 2026 • Distributed via GitHub Releases</footer>
   </div>
 
   <script>
     const GITHUB_REPO = 'AkashKumar-Behera/Astra';
-    const API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
+    const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases`;
 
-    async function fetchLatestRelease() {
+    let allReleases = [];
+    let currentFilter = 'all';
+
+    async function loadReleases() {
+      const container = document.getElementById('releases-container');
       try {
-        const res = await fetch(API_URL);
-        if (!res.ok) throw new Error('Failed to load release info');
+        const res = await fetch(RELEASES_API);
+        if (!res.ok) throw new Error('Failed to load GitHub releases');
         const data = await res.json();
 
-        // Version & Date
-        document.getElementById('version-text').innerText = `Latest Release ${data.tag_name || 'v1.0.0'}`;
-        if (data.published_at) {
-          const date = new Date(data.published_at).toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric'
-          });
-          document.getElementById('release-date').innerText = date;
+        // Filter out drafts
+        allReleases = data.filter(r => !r.draft);
+
+        if (allReleases.length === 0) {
+          container.innerHTML = `<div style="color:var(--text-muted); padding:30px; text-align:center;">No published releases available yet.</div>`;
+          return;
         }
 
-        // Changelog
-        document.getElementById('changelog-text').innerText = data.body || 'Performance improvements and bug fixes.';
-
-        // Assets
-        if (data.assets && data.assets.length > 0) {
-          const apkAsset = data.assets.find(a => a.name.endsWith('.apk'));
-          const ipaAsset = data.assets.find(a => a.name.endsWith('.ipa'));
-
-          if (apkAsset) {
-            const apkBtn = document.getElementById('apk-link');
-            apkBtn.href = apkAsset.browser_download_url;
-            apkBtn.innerHTML = `<span>Download .APK (${(apkAsset.size / (1024 * 1024)).toFixed(1)} MB)</span> <span>↓</span>`;
-          }
-
-          if (ipaAsset) {
-            const ipaBtn = document.getElementById('ipa-link');
-            ipaBtn.href = ipaAsset.browser_download_url;
-            ipaBtn.innerHTML = `<span>Download .IPA (${(ipaAsset.size / (1024 * 1024)).toFixed(1)} MB)</span> <span>↓</span>`;
-          }
-        }
+        renderReleases();
       } catch (err) {
-        document.getElementById('version-text').innerText = 'Latest Version Available on GitHub';
-        document.getElementById('changelog-text').innerText = 'Click the buttons above to visit the latest release page on GitHub.';
+        container.innerHTML = `
+          <div style="color:var(--text-muted); padding:30px; text-align:center;">
+            Failed to load releases directly from GitHub. 
+            <br><br>
+            <a href="https://github.com/${GITHUB_REPO}/releases" style="color:var(--primary); text-decoration:none; font-weight:bold;">
+              Visit GitHub Releases Page ↗
+            </a>
+          </div>
+        `;
       }
     }
 
-    fetchLatestRelease();
+    function renderReleases() {
+      const container = document.getElementById('releases-container');
+      container.innerHTML = '';
+
+      const filtered = allReleases.filter(r => {
+        const isBeta = r.prerelease || r.tag_name.toLowerCase().includes('beta');
+        if (currentFilter === 'stable') return !isBeta;
+        if (currentFilter === 'beta') return isBeta;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-muted); padding:20px; text-align:center;">No releases found for this filter.</div>`;
+        return;
+      }
+
+      filtered.forEach((r, idx) => {
+        const isBeta = r.prerelease || r.tag_name.toLowerCase().includes('beta');
+        const badgeText = isBeta ? '🧪 Beta' : (idx === 0 ? '✨ Latest Stable' : 'Stable');
+        const badgeClass = isBeta ? 'tag-beta' : 'tag-stable';
+
+        const pubDate = r.published_at 
+          ? new Date(r.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '';
+
+        const apkAsset = r.assets?.find(a => a.name.endsWith('.apk'));
+        const ipaAsset = r.assets?.find(a => a.name.endsWith('.ipa'));
+
+        const card = document.createElement('div');
+        card.className = 'version-card';
+
+        let actionsHtml = '';
+        if (apkAsset) {
+          const mb = (apkAsset.size / (1024 * 1024)).toFixed(1);
+          actionsHtml += `
+            <a href="${apkAsset.browser_download_url}" class="dl-btn dl-btn-android" download>
+              🤖 Download Android .APK (${mb} MB)
+            </a>
+          `;
+        }
+
+        if (ipaAsset) {
+          const mb = (ipaAsset.size / (1024 * 1024)).toFixed(1);
+          actionsHtml += `
+            <a href="${ipaAsset.browser_download_url}" class="dl-btn dl-btn-ios" download>
+              🍏 Download iOS .IPA (${mb} MB)
+            </a>
+          `;
+        }
+
+        if (!apkAsset && !ipaAsset) {
+          actionsHtml += `
+            <a href="${r.html_url}" class="dl-btn dl-btn-ios" target="_blank">
+              View Assets on GitHub ↗
+            </a>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="card-top">
+            <div class="ver-info">
+              <span class="ver-number">${r.tag_name}</span>
+              <span class="tag-badge ${badgeClass}">${badgeText}</span>
+            </div>
+            <span class="ver-date">${pubDate}</span>
+          </div>
+
+          <div class="notes-box">${r.body ? escapeHtml(r.body) : 'No specific release notes provided for this version.'}</div>
+
+          <div class="actions-grid">
+            ${actionsHtml}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function filterReleases(type, btn) {
+      currentFilter = type;
+      document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderReleases();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+
+    loadReleases();
   </script>
 </body>
 </html>

@@ -171,8 +171,16 @@ class _SplashScreenState extends State<SplashScreen>
                       updateInfo.releasePageUrl ??
                       'https://github.com/AkashKumar-Behera/Astra/releases/latest';
                   final uri = Uri.parse(targetUrl);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  try {
+                    final launched = await launchUrl(
+                      uri,
+                      mode: LaunchMode.externalApplication,
+                    );
+                    if (!launched) {
+                      await launchUrl(uri, mode: LaunchMode.platformDefault);
+                    }
+                  } catch (e) {
+                    await launchUrl(uri, mode: LaunchMode.platformDefault);
                   }
                 },
                 child: const Text(
