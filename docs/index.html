@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Astra — Closer. Always. | Download App</title>
+  <title>Astra — Closer. Always. | Download for Android & iOS</title>
   <link rel="shortcut icon" href="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" type="image/x-icon">
-  <meta name="description" content="Astra — Private intimate connection app for couples. Live presence, home & lock screen widgets, status sharing, and instant WhatsApp-style phone pairing.">
+  <meta name="description" content="Astra — Download private intimate connection app for Android and iOS. Live status widgets, WhatsApp-style phone pairing, and private space for couples.">
   <link rel="canonical" href="https://astra.croto.in/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,17 +13,17 @@
 
   <style>
     :root {
-      --bg-1: #1e1338;
-      --bg-2: #0d071c;
-      --bg-3: #04020a;
+      --bg-1: #24164c;
+      --bg-2: #110927;
+      --bg-3: #05020c;
       --accent: #7C5CFC;
       --accent-glow: rgba(124, 92, 252, 0.45);
       --accent-2: #5130d8;
       --muted: #9aa4b2;
       --card: rgba(255, 255, 255, 0.03);
-      --glass: rgba(22, 16, 46, 0.7);
+      --glass: rgba(20, 14, 44, 0.72);
       --radius: 16px;
-      --max-width: 1120px;
+      --max-width: 1140px;
     }
 
     * {
@@ -65,7 +65,7 @@
     .wrap {
       max-width: var(--max-width);
       margin: 0 auto;
-      padding: 28px 24px;
+      padding: 32px 24px 60px 24px;
     }
 
     /* Header */
@@ -74,7 +74,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 24px;
+      margin-bottom: 32px;
     }
 
     .brand {
@@ -147,11 +147,11 @@
     /* HERO */
     .hero {
       display: grid;
-      grid-template-columns: 1fr 400px;
+      grid-template-columns: 1fr 420px;
       gap: 40px;
       align-items: center;
-      margin-top: 16px;
-      margin-bottom: 48px;
+      margin-top: 12px;
+      margin-bottom: 50px;
     }
 
     .badge {
@@ -165,7 +165,7 @@
       background: rgba(0, 230, 118, 0.12);
       color: #00E676;
       border: 1px solid rgba(0, 230, 118, 0.3);
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
     .status-dot {
@@ -178,7 +178,7 @@
 
     .hero h1 {
       margin: 0;
-      font-size: 38px;
+      font-size: 40px;
       line-height: 1.15;
       letter-spacing: -0.03em;
       font-weight: 800;
@@ -195,10 +195,10 @@
       font-size: 15px;
       line-height: 1.6;
       margin: 14px 0 24px 0;
-      max-width: 540px;
+      max-width: 560px;
     }
 
-    /* Horizontal Version Selector (Carousel) */
+    /* Horizontal Version Selector */
     .version-selector-container {
       margin-bottom: 22px;
     }
@@ -256,12 +256,17 @@
       color: var(--muted);
     }
 
-    /* DOWNLOAD BUTTONS GROUP */
+    /* DOWNLOAD BUTTONS GROUP WITH ARCHITECTURE DROPDOWNS */
     .download-group {
       display: flex;
       gap: 14px;
       align-items: center;
       flex-wrap: wrap;
+    }
+
+    .dropdown-container {
+      position: relative;
+      display: inline-block;
     }
 
     .btn {
@@ -275,6 +280,8 @@
       text-decoration: none;
       cursor: pointer;
       transition: all 0.2s ease;
+      position: relative;
+      border: none;
     }
 
     .btn.primary {
@@ -316,6 +323,68 @@
       margin-top: 3px;
     }
 
+    .caret-icon {
+      margin-left: 4px;
+      transition: transform 0.2s;
+    }
+
+    /* CloudBeatz Style Architecture Dropdown Menu */
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 290px;
+      background: rgba(22, 16, 46, 0.98);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(124, 92, 252, 0.35);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px rgba(6, 4, 18, 0.8);
+      padding: 8px;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 120;
+    }
+
+    .dropdown-menu.open {
+      display: flex;
+      animation: menuFade 0.2s ease;
+    }
+
+    @keyframes menuFade {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dropdown-menu a {
+      display: flex;
+      flex-direction: column;
+      padding: 10px 14px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #dfe9ff;
+      text-align: left;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .dropdown-menu a:hover {
+      background: rgba(124, 92, 252, 0.25);
+      color: #fff;
+    }
+
+    .dropdown-menu a .arch-name {
+      font-weight: 700;
+      font-size: 13.5px;
+      color: #a894ff;
+    }
+
+    .dropdown-menu a .arch-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
     .meta {
       font-size: 12px;
       color: var(--muted);
@@ -334,12 +403,12 @@
 
     .mockup-container {
       position: relative;
-      width: 320px;
-      height: 320px;
+      width: 340px;
+      height: 340px;
       border-radius: 28px;
-      background: linear-gradient(180deg, rgba(124, 92, 252, 0.15) 0%, rgba(13, 7, 28, 0.8) 100%);
+      background: linear-gradient(180deg, rgba(124, 92, 252, 0.18) 0%, rgba(13, 7, 28, 0.85) 100%);
       border: 1px solid rgba(124, 92, 252, 0.35);
-      box-shadow: 0 20px 50px rgba(76, 40, 160, 0.4);
+      box-shadow: 0 20px 50px rgba(76, 40, 160, 0.45);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -347,11 +416,11 @@
     }
 
     .mockup-img {
-      width: 190px;
-      height: 190px;
-      border-radius: 24px;
+      width: 210px;
+      height: 210px;
+      border-radius: 26px;
       object-fit: cover;
-      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
       animation: floatLogo 5s ease-in-out infinite;
     }
 
@@ -362,11 +431,11 @@
 
     .quick-stats {
       display: flex;
-      gap: 20px;
+      gap: 22px;
       background: var(--glass);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 16px;
-      padding: 12px 24px;
+      padding: 12px 26px;
       backdrop-filter: blur(14px);
     }
 
@@ -394,7 +463,7 @@
       border-radius: 20px;
       padding: 24px;
       backdrop-filter: blur(20px);
-      margin-bottom: 40px;
+      margin-bottom: 44px;
     }
 
     .changelog-head {
@@ -442,7 +511,7 @@
       background: var(--card);
       border: 1px solid rgba(255, 255, 255, 0.06);
       border-radius: var(--radius);
-      padding: 20px;
+      padding: 22px;
       transition: transform 0.2s ease, border-color 0.2s ease;
     }
 
@@ -452,8 +521,8 @@
     }
 
     .feature-icon {
-      font-size: 24px;
-      margin-bottom: 10px;
+      font-size: 26px;
+      margin-bottom: 12px;
     }
 
     .feature-card h3 {
@@ -478,10 +547,10 @@
     }
 
     /* Responsive */
-    @media (max-width: 900px) {
+    @media (max-width: 960px) {
       .hero {
         grid-template-columns: 1fr;
-        gap: 28px;
+        gap: 32px;
       }
       .hero-right {
         order: -1;
@@ -501,7 +570,7 @@
         <img src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" alt="Astra logo" class="brand-icon">
         <div class="brand-text">
           <div class="brand-name">Astra</div>
-          <div class="brand-sub">Closer. Always. • Couples Space</div>
+          <div class="brand-sub">Closer. Always. • Private Space</div>
         </div>
       </a>
 
@@ -532,7 +601,7 @@
         <!-- Horizontal Version Scroller -->
         <div class="version-selector-container">
           <div class="version-selector-header">
-            <span>Select Available Release</span>
+            <span>Select Release Build</span>
             <span id="active-release-title" style="color:var(--accent);">v1.0.2 Stable</span>
           </div>
           <div id="versions-carousel" class="version-scroller">
@@ -540,33 +609,63 @@
           </div>
         </div>
 
-        <!-- Download Buttons -->
+        <!-- Download Buttons with Architecture Dropdowns -->
         <div class="download-group">
-          <!-- Android Button -->
-          <a class="btn primary" id="btn-download-android" href="#" download>
-            <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.411 13.844 8.125 12 8.125c-1.844 0-3.5847.286-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
-            </svg>
-            <div class="btn-text-block">
-              <span>Download for Android</span>
-              <span class="btn-sub-label" id="android-sub-label">Release APK (~20 MB)</span>
+          
+          <!-- Android Dropdown Container -->
+          <div class="dropdown-container">
+            <button class="btn primary" id="btn-android-trigger" aria-haspopup="true" aria-expanded="false">
+              <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.411 13.844 8.125 12 8.125c-1.844 0-3.5847.286-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+              </svg>
+              <div class="btn-text-block">
+                <span>Download for Android</span>
+                <span class="btn-sub-label" id="android-sub-label">Release APK Options ▾</span>
+              </div>
+            </button>
+            <div class="dropdown-menu" id="androidMenu">
+              <a href="#" id="link-apk-primary" download>
+                <span class="arch-name">ARM64-v8a (Recommended)</span>
+                <span class="arch-desc">Optimized for modern Android devices (~20 MB)</span>
+              </a>
+              <a href="#" id="link-apk-fallback" download>
+                <span class="arch-name">Universal Build</span>
+                <span class="arch-desc">Compatible with all Android devices</span>
+              </a>
             </div>
-          </a>
+          </div>
 
-          <!-- iOS Button -->
-          <a class="btn outline" id="btn-download-ios" href="#" download>
-            <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z"/>
-            </svg>
-            <div class="btn-text-block">
-              <span>Download for iOS</span>
-              <span class="btn-sub-label" id="ios-sub-label">Sideload IPA (AltStore / TrollStore)</span>
+          <!-- iOS Dropdown Container -->
+          <div class="dropdown-container">
+            <button class="btn outline" id="btn-ios-trigger" aria-haspopup="true" aria-expanded="false">
+              <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z"/>
+              </svg>
+              <div class="btn-text-block">
+                <span>Download for iOS</span>
+                <span class="btn-sub-label" id="ios-sub-label">Sideload Options ▾</span>
+              </div>
+            </button>
+            <div class="dropdown-menu" id="iosMenu">
+              <a href="#" id="link-ipa-direct" download>
+                <span class="arch-name">Direct IPA File</span>
+                <span class="arch-desc">Install via AltStore, TrollStore, or Sideloadly</span>
+              </a>
+              <a href="https://sideloadly.io/" target="_blank" rel="noopener">
+                <span class="arch-name">Sideloadly Tool ↗</span>
+                <span class="arch-desc">Free IPA sideload installer for Mac & PC</span>
+              </a>
+              <a href="https://altstore.io/" target="_blank" rel="noopener">
+                <span class="arch-name">AltStore Setup ↗</span>
+                <span class="arch-desc">Install IPA without computer every week</span>
+              </a>
             </div>
-          </a>
+          </div>
+
         </div>
 
         <div class="meta">
-          <span>🔒 Direct GitHub Releases</span> • <span>✨ No Ads, 100% Free</span> • <span>⚡ Instant Phone Search</span>
+          <span>🔒 Direct GitHub Releases</span> • <span>✨ 100% Free</span> • <span>⚡ Instant Phone Search</span>
         </div>
       </div>
 
@@ -708,29 +807,36 @@
         : 'Performance improvements and bug fixes.';
 
       // Assets
-      const apk = rel.assets?.find(a => a.name.endsWith('.apk'));
+      const arm64Apk = rel.assets?.find(a => a.name.includes('arm64') && a.name.endsWith('.apk'));
+      const anyApk = rel.assets?.find(a => a.name.endsWith('.apk'));
+      const apkAsset = arm64Apk || anyApk;
+
       const ipa = rel.assets?.find(a => a.name.endsWith('.ipa'));
 
-      const btnAndroid = document.getElementById('btn-download-android');
+      const linkApkPrimary = document.getElementById('link-apk-primary');
+      const linkApkFallback = document.getElementById('link-apk-fallback');
       const labelAndroid = document.getElementById('android-sub-label');
-      if (apk) {
-        btnAndroid.href = apk.browser_download_url;
-        const mb = (apk.size / (1024 * 1024)).toFixed(1);
-        labelAndroid.innerText = `Release APK (${mb} MB)`;
+
+      if (apkAsset) {
+        const mb = (apkAsset.size / (1024 * 1024)).toFixed(1);
+        labelAndroid.innerText = `${rel.tag_name} APK (${mb} MB) ▾`;
+        linkApkPrimary.href = apkAsset.browser_download_url;
+        linkApkFallback.href = anyApk ? anyApk.browser_download_url : apkAsset.browser_download_url;
       } else {
-        btnAndroid.href = rel.html_url;
-        labelAndroid.innerText = 'View on GitHub';
+        labelAndroid.innerText = 'View on GitHub ▾';
+        linkApkPrimary.href = rel.html_url;
+        linkApkFallback.href = rel.html_url;
       }
 
-      const btnIos = document.getElementById('btn-download-ios');
+      const linkIpaDirect = document.getElementById('link-ipa-direct');
       const labelIos = document.getElementById('ios-sub-label');
       if (ipa) {
-        btnIos.href = ipa.browser_download_url;
         const mb = (ipa.size / (1024 * 1024)).toFixed(1);
-        labelIos.innerText = `Sideload IPA (${mb} MB)`;
+        labelIos.innerText = `${rel.tag_name} IPA (${mb} MB) ▾`;
+        linkIpaDirect.href = ipa.browser_download_url;
       } else {
-        btnIos.href = rel.html_url;
-        labelIos.innerText = 'View on GitHub';
+        labelIos.innerText = 'View on GitHub ▾';
+        linkIpaDirect.href = rel.html_url;
       }
     }
 
@@ -744,6 +850,52 @@
         .replace(/\*\*(.*?)\*\*/gim, '<strong style="color:#fff;">$1</strong>')
         .replace(/^\- (.*$)/gim, '<li style="margin-left:18px; margin-bottom:4px;">$1</li>');
     }
+
+    // Dropdown Handling
+    const androidTrigger = document.getElementById('btn-android-trigger');
+    const androidMenu = document.getElementById('androidMenu');
+    const iosTrigger = document.getElementById('btn-ios-trigger');
+    const iosMenu = document.getElementById('iosMenu');
+
+    function toggleMenu(menu, trigger) {
+      const isOpen = menu.classList.contains('open');
+      closeAllMenus();
+      if (!isOpen) {
+        menu.classList.add('open');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    function closeAllMenus() {
+      if (androidMenu) androidMenu.classList.remove('open');
+      if (iosMenu) iosMenu.classList.remove('open');
+      if (androidTrigger) androidTrigger.setAttribute('aria-expanded', 'false');
+      if (iosTrigger) iosTrigger.setAttribute('aria-expanded', 'false');
+    }
+
+    if (androidTrigger) {
+      androidTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu(androidMenu, androidTrigger);
+      });
+    }
+
+    if (iosTrigger) {
+      iosTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMenu(iosMenu, iosTrigger);
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dropdown-container')) {
+        closeAllMenus();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAllMenus();
+    });
 
     loadReleases();
   </script>
