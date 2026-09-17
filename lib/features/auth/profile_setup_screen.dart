@@ -1,36 +1,112 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/theme/astra_theme.dart';
 import 'qr_pairing_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class ProfileSetupScreen extends StatefulWidget {
+  final String phoneNumber;
+  final String uid;
+
+  const ProfileSetupScreen({
+    super.key,
+    required this.phoneNumber,
+    required this.uid,
+  });
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _nameController =
-      TextEditingController(text: "Akash");
+class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  File? _localImageFile;
   bool _isLoading = false;
 
-  void _handleGoogleSignIn() async {
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 75,
+        maxWidth: 600,
+        maxHeight: 600,
+      );
+
+      if (picked != null) {
+        setState(() {
+          _localImageFile = File(picked.path);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleContinue() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your name'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
-    // Google Sign-in flow via Firebase / Auth
-    await Future.delayed(const Duration(milliseconds: 1200));
+    try {
+      String? photoUrl;
 
-    if (mounted) {
+      // Upload profile image to Firebase Storage if selected
+      // Stored at profile_pictures/{uid}.jpg to overwrite without storage bloat
+      if (_localImageFile != null) {
+        photoUrl = await AuthService.uploadProfilePicture(
+          uid: widget.uid,
+          file: _localImageFile!,
+        );
+      }
+
+      // Save user profile in Firestore
+      await AuthService.saveUserProfile(
+        uid: widget.uid,
+        name: name,
+        phoneNumber: widget.phoneNumber,
+        photoUrl: photoUrl,
+      );
+
+      if (!mounted) return;
       setState(() => _isLoading = false);
+
+      // Navigate to Screen 3 (QR Pairing)
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (context) => QrPairingScreen(
-            userName: _nameController.text.trim().isEmpty
-                ? "Akash"
-                : _nameController.text.trim(),
+            userName: name,
           ),
         ),
       );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save profile: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -64,8 +140,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AstraTheme.background.withOpacity(0.5),
-                    AstraTheme.background.withOpacity(0.85),
+                    AstraTheme.background.withValues(alpha: 0.5),
+                    AstraTheme.background.withValues(alpha: 0.85),
                     AstraTheme.background,
                   ],
                 ),
@@ -89,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         height: 38,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AstraTheme.primary.withOpacity(0.2),
+                          color: AstraTheme.primary.withValues(alpha: 0.2),
                         ),
                         child: ClipOval(
                           child: Image.asset(
@@ -186,70 +262,97 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 36),
 
-                  // Profile Avatar Placeholder
-                  Stack(
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AstraTheme.primary.withOpacity(0.5),
-                            width: 2,
-                          ),
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              AstraTheme.cardSurfaceLight,
-                              AstraTheme.cardSurface,
-                            ],
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          size: 64,
-                          color: AstraTheme.textSecondary,
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 36,
-                          height: 36,
+                  // Profile Avatar Placeholder with Local Preview
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Stack(
+                      children: [
+                        Container(
+                          width: 130,
+                          height: 130,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: AstraTheme.primary,
                             border: Border.all(
-                              color: AstraTheme.background,
+                              color: AstraTheme.primary.withValues(alpha: 0.6),
                               width: 2,
                             ),
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AstraTheme.cardSurfaceLight,
+                                AstraTheme.cardSurface,
+                              ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AstraTheme.primary.withValues(alpha: 0.25),
+                                blurRadius: 20,
+                              ),
+                            ],
                           ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            size: 18,
-                            color: Colors.white,
+                          child: ClipOval(
+                            child: _localImageFile != null
+                                ? Image.file(
+                                    _localImageFile!,
+                                    fit: BoxFit.cover,
+                                  )
+                                : const Icon(
+                                    Icons.person,
+                                    size: 68,
+                                    color: AstraTheme.textSecondary,
+                                  ),
                           ),
                         ),
-                      ),
-                    ],
+                        Positioned(
+                          bottom: 2,
+                          right: 2,
+                          child: Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AstraTheme.primary,
+                              border: Border.all(
+                                color: AstraTheme.background,
+                                width: 2.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AstraTheme.primary.withValues(alpha: 0.5),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              size: 19,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 32),
 
                   // Name Input Field
                   Container(
                     decoration: BoxDecoration(
-                      color: AstraTheme.cardSurface.withOpacity(0.8),
+                      color: AstraTheme.cardSurface.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AstraTheme.borderSubtle),
+                      border: Border.all(
+                        color: AstraTheme.borderSubtle.withValues(alpha: 0.8),
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: TextField(
                       controller: _nameController,
-                      style: const TextStyle(color: AstraTheme.textPrimary),
+                      style: const TextStyle(
+                        color: AstraTheme.textPrimary,
+                        fontSize: 15,
+                      ),
                       decoration: const InputDecoration(
                         icon: Icon(Icons.person_outline,
                             color: AstraTheme.textSecondary),
@@ -265,15 +368,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Privacy Note
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.lock_outline,
+                    children: [
+                      const Icon(Icons.lock_outline,
                           size: 14, color: AstraTheme.textSecondary),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         'Your profile is only visible to your connection.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AstraTheme.textSecondary,
+                          color: AstraTheme.textSecondary.withValues(alpha: 0.9),
                         ),
                       ),
                     ],
@@ -281,7 +384,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const Spacer(flex: 2),
 
-                  // Continue with Google Button
+                  // Continue / Proceed Button
                   Container(
                     width: double.infinity,
                     height: 54,
@@ -295,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AstraTheme.primary.withOpacity(0.4),
+                          color: AstraTheme.primary.withValues(alpha: 0.4),
                           blurRadius: 20,
                           offset: const Offset(0, 4),
                         ),
@@ -305,7 +408,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Colors.transparent,
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
-                        onTap: _isLoading ? null : _handleGoogleSignIn,
+                        onTap: _isLoading ? null : _handleContinue,
                         child: Center(
                           child: _isLoading
                               ? const SizedBox(
@@ -321,7 +424,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: const [
                                     Text(
-                                      'Continue with Google',
+                                      'Continue',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -339,7 +442,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                 ],
               ),
             ),

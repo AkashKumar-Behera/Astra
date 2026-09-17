@@ -1,0 +1,5 @@
+{
+  "github-actions.workflows.pinned.workflows": [],
+  "yaml.validate": true,
+  "github-actions.diagnostics.strictContextCheck": false
+}

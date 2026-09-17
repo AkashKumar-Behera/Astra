@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/services/auth_service.dart';
 import '../../core/theme/astra_theme.dart';
-import '../auth/login_screen.dart';
+import '../auth/phone_auth_screen.dart';
+import '../auth/profile_setup_screen.dart';
+import '../auth/qr_pairing_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -46,21 +50,41 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Timer(const Duration(milliseconds: 2800), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const LoginScreen(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
+    _handleRouting();
+  }
+
+  void _handleRouting() async {
+    await Future.delayed(const Duration(milliseconds: 2600));
+    if (!mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    Widget destination = const PhoneAuthScreen();
+
+    if (user != null) {
+      final profile = await AuthService.getUserProfile(user.uid);
+      if (profile != null &&
+          profile['name'] != null &&
+          (profile['name'] as String).isNotEmpty) {
+        destination = QrPairingScreen(userName: profile['name']);
+      } else {
+        destination = ProfileSetupScreen(
+          phoneNumber: user.phoneNumber ?? '',
+          uid: user.uid,
         );
       }
-    });
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => destination,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 800),
+        ),
+      );
+    }
   }
 
   @override
