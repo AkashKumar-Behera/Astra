@@ -9,13 +9,17 @@ on:
   workflow_dispatch:
     inputs:
       release_title:
-        description: 'Release Title (e.g. Astra v1.0.1)'
+        description: 'Release Title (e.g. Astra v1.0.1-beta)'
         required: false
         default: ''
       release_notes:
         description: 'Release Notes / Changelog'
         required: false
-        default: 'Automated personal build from GitHub Actions.'
+        default: 'Automated build from GitHub Actions.'
+      is_prerelease:
+        description: 'Mark as Beta / Pre-release'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -33,6 +37,7 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -133,17 +138,31 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Determine if Beta / Pre-release
+        id: release_type
+        run: |
+          TAG="${GITHUB_REF_NAME:-}"
+          MANUAL_BETA="${{ inputs.is_prerelease }}"
+          if [[ "$MANUAL_BETA" == "true" ]] || [[ "$TAG" =~ (beta|alpha|dev|rc) ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "type_label=🧪 Beta / Pre-Release" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+            echo "type_label=✨ Stable Release" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create / Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ inputs.release_title || github.ref_name }}
+          prerelease: ${{ steps.release_type.outputs.prerelease == 'true' }}
           body: |
-            ## 🚀 Astra Release ${{ github.ref_name }}
+            ## ${{ steps.release_type.outputs.type_label }}: Astra ${{ github.ref_name }}
             
             ${{ inputs.release_notes || '### Changes in this build:' }}
             
-            - Automatic CI/CD build from commit: `${{ github.sha }}`
+            - Commit: `${{ github.sha }}`
             - Signed Android APK ready for direct install.
             - Unsigned iOS IPA ready for Sideloadly / AltStore / TrollStore.
           generate_release_notes: true

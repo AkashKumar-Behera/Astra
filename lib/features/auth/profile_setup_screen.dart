@@ -150,11 +150,18 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
 
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 36),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 36),
 
                   // Header Astra Icon & Title
                   Row(
@@ -443,10 +450,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   ),
 
                   const SizedBox(height: 28),
-                ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
         ],
       ),
     );

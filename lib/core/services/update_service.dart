@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateInfo {
   final bool hasUpdate;
+  final bool isBeta;
   final String latestVersion;
   final String currentVersion;
   final String? releaseNotes;
@@ -13,6 +15,7 @@ class UpdateInfo {
 
   UpdateInfo({
     required this.hasUpdate,
+    this.isBeta = false,
     required this.latestVersion,
     required this.currentVersion,
     this.releaseNotes,
@@ -23,34 +26,74 @@ class UpdateInfo {
 
 class UpdateService {
   static const String _githubRepo = 'AkashKumar-Behera/Astra';
-  static const String _releasesApiUrl =
-      'https://api.github.com/repos/$_githubRepo/releases/latest';
+  static const String _releasesListUrl =
+      'https://api.github.com/repos/$_githubRepo/releases';
+  static const String _betaTestingKey = 'include_beta_updates';
+
+  /// Check if user has opted into beta testing updates
+  static Future<bool> isBetaEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_betaTestingKey) ?? false;
+  }
+
+  /// Toggle beta testing channel
+  static Future<void> setBetaEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_betaTestingKey, enabled);
+  }
 
   /// Performs a fast check against GitHub Releases API with strict timeout.
-  /// Does not block user if network is slow or offline.
+  /// If beta is false: filters for stable releases only (ignoring pre-releases/beta tags).
+  /// If beta is true: includes latest beta / pre-releases.
   static Future<UpdateInfo?> checkForUpdate({
-    Duration timeout = const Duration(milliseconds: 1500),
+    Duration timeout = const Duration(milliseconds: 1600),
   }) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version; // e.g. "1.0.0"
+      final betaEnabled = await isBetaEnabled();
 
       final response = await http
           .get(
-            Uri.parse(_releasesApiUrl),
+            Uri.parse(_releasesListUrl),
             headers: {'Accept': 'application/vnd.github.v3+json'},
           )
           .timeout(timeout);
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final tagName = (data['tag_name'] as String? ?? '')
-            .replaceAll(RegExp(r'[^0-9.]'), '');
-        final releaseNotes = data['body'] as String? ?? '';
-        final htmlUrl = data['html_url'] as String? ?? '';
+        final releases = jsonDecode(response.body) as List<dynamic>;
+        if (releases.isEmpty) return null;
+
+        Map<String, dynamic>? selectedRelease;
+
+        for (var r in releases) {
+          final isPrerelease = (r['prerelease'] as bool? ?? false);
+          final tagName = (r['tag_name'] as String? ?? '').toLowerCase();
+          final isBetaTag = isPrerelease ||
+              tagName.contains('beta') ||
+              tagName.contains('alpha') ||
+              tagName.contains('dev');
+
+          if (!betaEnabled && isBetaTag) {
+            // User only wants stable releases, skip beta/dev tags
+            continue;
+          }
+
+          selectedRelease = r as Map<String, dynamic>;
+          break;
+        }
+
+        if (selectedRelease == null) return null;
+
+        final rawTag = selectedRelease['tag_name'] as String? ?? '';
+        final cleanTag = rawTag.replaceAll(RegExp(r'[^0-9.]'), '');
+        final isBetaRelease = (selectedRelease['prerelease'] as bool? ?? false) ||
+            rawTag.toLowerCase().contains('beta');
+        final releaseNotes = selectedRelease['body'] as String? ?? '';
+        final htmlUrl = selectedRelease['html_url'] as String? ?? '';
 
         String? apkUrl;
-        final assets = data['assets'] as List<dynamic>?;
+        final assets = selectedRelease['assets'] as List<dynamic>?;
         if (assets != null) {
           for (var asset in assets) {
             final name = asset['name'] as String? ?? '';
@@ -61,11 +104,12 @@ class UpdateService {
           }
         }
 
-        final isNewer = _compareVersions(tagName, currentVersion) > 0;
+        final isNewer = _compareVersions(cleanTag, currentVersion) > 0;
 
         return UpdateInfo(
           hasUpdate: isNewer,
-          latestVersion: tagName.isNotEmpty ? tagName : currentVersion,
+          isBeta: isBetaRelease,
+          latestVersion: rawTag.isNotEmpty ? rawTag : currentVersion,
           currentVersion: currentVersion,
           releaseNotes: releaseNotes,
           apkDownloadUrl: apkUrl ?? htmlUrl,
