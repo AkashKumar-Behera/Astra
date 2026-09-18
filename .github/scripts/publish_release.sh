@@ -2,16 +2,16 @@
 set -e
 
 CHANGES="${INPUT_RELEASE_NOTES:-}"
-if [ -z "$CHANGES" ] || [ "$CHANGES" = "Automated build from GitHub Actions." ]; then
-  CHANGES="### 🚀 What's New:
-- **WhatsApp Style Phone Search**: Connect with anyone by searching their 10-digit mobile number directly.
-- **Lean APK Builds**: Android app package optimized down to ~20MB (arm64-v8a) from 73MB.
-- **App Store Web Hub**: Dynamic web page displaying all versions with direct APK/IPA downloads.
 
-### 🐛 Bug Fixes & Improvements:
-- **Android In-App Update**: Fixed 'Update Now' button opening in browser.
-- **iOS Phone Auth Crash**: Fixed unhandled URL scheme on iPhone by configuring CFBundleURLSchemes.
-- **Direct Home Landing**: Bypassed onboarding QR screen; users land directly into HomeScreen."
+# If no manual workflow dispatch notes, try reading the git tag message
+if [ -z "$CHANGES" ] || [ "$CHANGES" = "Automated build from GitHub Actions." ]; then
+  TAG_MSG=$(git tag -l --format='%(contents)' "$TAG_NAME" 2>/dev/null || echo "")
+  if [ -n "$TAG_MSG" ]; then
+    CHANGES="$TAG_MSG"
+  else
+    COMMIT_MSG=$(git log -1 --pretty=%B 2>/dev/null || echo "")
+    CHANGES="$COMMIT_MSG"
+  fi
 fi
 
 BODY_CONTENT="## ${LABEL}: Astra ${TAG_NAME}
