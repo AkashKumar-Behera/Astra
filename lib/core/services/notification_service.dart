@@ -36,50 +36,58 @@ class NotificationService {
 
   /// Initialize FCM listeners, permissions, and token registration
   static Future<void> initialize() async {
-    // 1. Request notification permissions (iOS / Android 13+)
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
+    try {
+      // 1. Request notification permissions (iOS / Android 13+)
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      return;
-    }
-
-    // 2. Set background message handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // 3. Register current device token if user is signed in
-    final currentUser = _auth.currentUser;
-    if (currentUser != null) {
-      await registerDeviceToken(currentUser.uid);
-    }
-
-    // 4. Listen to token refreshes
-    _tokenRefreshSub?.cancel();
-    _tokenRefreshSub = _messaging.onTokenRefresh.listen((newToken) async {
-      final uid = _auth.currentUser?.uid;
-      if (uid != null) {
-        await _saveDeviceToken(uid, newToken);
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        return;
       }
-    });
 
-    // 5. Handle foreground notifications
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      // Foreground notification received - UI updates naturally via Firestore stream
-    });
+      // 2. Set background message handler (Android only; iOS uses APNs background processing)
+      if (Platform.isAndroid) {
+        try {
+          FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+        } catch (_) {}
+      }
 
-    // 6. Handle notification click when app is opened from background
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      handleNotificationRouting(message.data);
-    });
+      // 3. Register current device token if user is signed in
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        await registerDeviceToken(currentUser.uid);
+      }
 
-    // 7. Handle notification click when app was launched from terminated state
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      handleNotificationRouting(initialMessage.data);
+      // 4. Listen to token refreshes
+      _tokenRefreshSub?.cancel();
+      _tokenRefreshSub = _messaging.onTokenRefresh.listen((newToken) async {
+        final uid = _auth.currentUser?.uid;
+        if (uid != null) {
+          await _saveDeviceToken(uid, newToken);
+        }
+      });
+
+      // 5. Handle foreground notifications
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        // Foreground notification received - UI updates naturally via Firestore stream
+      });
+
+      // 6. Handle notification click when app is opened from background
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        handleNotificationRouting(message.data);
+      });
+
+      // 7. Handle notification click when app was launched from terminated state
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        handleNotificationRouting(initialMessage.data);
+      }
+    } catch (e) {
+      debugPrint('NotificationService.initialize ignored non-fatal error: $e');
     }
   }
 
@@ -99,6 +107,13 @@ class NotificationService {
   /// Register current device token under `/users/{uid}/devices/{deviceId}`
   static Future<void> registerDeviceToken(String uid) async {
     try {
+      if (Platform.isIOS) {
+        final apnsToken = await _messaging.getAPNSToken();
+        if (apnsToken == null) {
+          // On iOS without APNs entitlement or before token arrival, avoid throwing apns-token-not-set
+          return;
+        }
+      }
       final token = await _messaging.getToken();
       if (token == null || token.isEmpty) return;
       await _saveDeviceToken(uid, token);

@@ -8,15 +8,28 @@ import 'features/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
-  // Initialize FCM Push Notifications
-  await NotificationService.initialize();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase.initializeApp ignored error: $e');
+  }
 
-  // Initialize 30-minute background location sync via Workmanager
-  await BackgroundLocationManager.initialize();
+  // Initialize FCM Push Notifications safely
+  try {
+    await NotificationService.initialize();
+  } catch (e) {
+    debugPrint('NotificationService.initialize ignored error: $e');
+  }
+
+  // Initialize background location sync via Workmanager (Android only)
+  try {
+    await BackgroundLocationManager.initialize();
+  } catch (e) {
+    debugPrint('BackgroundLocationManager.initialize ignored error: $e');
+  }
 
   runApp(const AstraApp());
 }

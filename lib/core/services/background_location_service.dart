@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -52,6 +53,9 @@ void callbackDispatcher() {
 
 class BackgroundLocationManager {
   static Future<void> initialize() async {
+    // Workmanager periodic background tasks are Android only
+    if (!Platform.isAndroid) return;
+
     try {
       await Workmanager().initialize(
         callbackDispatcher,
