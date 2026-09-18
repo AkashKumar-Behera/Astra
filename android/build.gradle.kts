@@ -3,6 +3,9 @@ allprojects {
         google()
         mavenCentral()
     }
+    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+        enabled = false
+    }
 }
 
 val newBuildDir: Directory =
@@ -25,6 +28,9 @@ subprojects {
     }
     plugins.withId("com.android.application") {
         (extensions.findByName("android") as? com.android.build.gradle.BaseExtension)?.compileSdkVersion(36)
+    }
+    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+        enabled = false
     }
 }
 
