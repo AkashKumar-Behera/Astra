@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'core/services/background_location_service.dart';
 import 'core/theme/astra_theme.dart';
 import 'features/splash/splash_screen.dart';
 
@@ -9,6 +10,9 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize 30-minute background location sync via Workmanager
+  await BackgroundLocationManager.initialize();
 
   runApp(const AstraApp());
 }

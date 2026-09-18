@@ -5,8 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import 'package:firebase_database/firebase_database.dart';
 
 import '../../core/services/auth_service.dart';
+import '../../core/services/location_rtdb_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../auth/phone_auth_screen.dart';
 
@@ -29,6 +33,8 @@ class _HomeScreenState extends State<HomeScreen>
   Position? _currentPosition;
   bool _isGettingLocation = false;
   late AnimationController _pulseController;
+  bool _isMapView = false;
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -83,11 +89,18 @@ class _HomeScreenState extends State<HomeScreen>
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        await AuthService.updateUserLocation(
-          uid: uid,
-          latitude: position.latitude,
-          longitude: position.longitude,
-        );
+        await Future.wait([
+          AuthService.updateUserLocation(
+            uid: uid,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          ),
+          LocationRtdbService.updateLocation(
+            uid: uid,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          ),
+        ]);
       }
     } catch (_) {
       if (mounted) setState(() => _isGettingLocation = false);
@@ -599,113 +612,207 @@ class _HomeScreenState extends State<HomeScreen>
     final myLat = _currentPosition?.latitude;
     final myLng = _currentPosition?.longitude;
 
-    final distanceText = _formatDistance(myLat, myLng, partnerLat, partnerLng);
+    return StreamBuilder<DatabaseEvent>(
+      stream: LocationRtdbService.streamPartnerLocation(partnerUid),
+      builder: (context, rtdbSnap) {
+        double? livePartnerLat = partnerLat;
+        double? livePartnerLng = partnerLng;
 
-    return Column(
-      children: [
-        const SizedBox(height: 10),
+        if (rtdbSnap.hasData && rtdbSnap.data!.snapshot.value != null) {
+          try {
+            final val = Map<dynamic, dynamic>.from(rtdbSnap.data!.snapshot.value as Map);
+            livePartnerLat = (val['latitude'] as num?)?.toDouble() ?? livePartnerLat;
+            livePartnerLng = (val['longitude'] as num?)?.toDouble() ?? livePartnerLng;
+          } catch (_) {}
+        }
 
-        // Radar Visual with Center Partner Avatar
-        Expanded(
-          child: Center(
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CustomPaint(
-                      painter: _CosmicRadarPainter(
-                        pulseVal: _pulseController.value,
-                        isOnline: isOnline,
-                      ),
-                      size: const Size(280, 280),
+        final distanceText = _formatDistance(myLat, myLng, livePartnerLat, livePartnerLng);
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AstraTheme.cardSurface.withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AstraTheme.borderSubtle),
                     ),
-
-                    // Center Avatar with Live Glow
-                    Container(
-                      width: 82,
-                      height: 82,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (isOnline
-                                    ? AstraTheme.accentOnline
-                                    : AstraTheme.primary)
-                                .withValues(alpha: 0.4),
-                            blurRadius: 22,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        backgroundColor: AstraTheme.cardSurface,
-                        backgroundImage: photoUrl != null
-                            ? NetworkImage(photoUrl)
-                            : null,
-                        child: photoUrl == null
-                            ? Text(
-                                name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-
-                    // Live Status Pill on Radar
-                    Positioned(
-                      bottom: 18,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isOnline
-                                ? AstraTheme.accentOnline.withValues(alpha: 0.5)
-                                : AstraTheme.borderSubtle,
+                          onTap: () => setState(() => _isMapView = false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: !_isMapView ? AstraTheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.radar, size: 14, color: !_isMapView ? Colors.white : AstraTheme.textSecondary),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Radar',
+                                  style: TextStyle(
+                                    color: !_isMapView ? Colors.white : AstraTheme.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: isOnline
-                                    ? AstraTheme.accentOnline
-                                    : AstraTheme.accentOffline,
-                                shape: BoxShape.circle,
-                              ),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => setState(() => _isMapView = true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _isMapView ? AstraTheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              isOnline ? 'Online now' : 'Offline',
-                              style: TextStyle(
-                                color: isOnline
-                                    ? AstraTheme.accentOnline
-                                    : AstraTheme.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.map_outlined, size: 14, color: _isMapView ? Colors.white : AstraTheme.textSecondary),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Live Map',
+                                  style: TextStyle(
+                                    color: _isMapView ? Colors.white : AstraTheme.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // Main View Area: Radar OR Dark OpenStreetMap
+            Expanded(
+              child: _isMapView
+                  ? _buildDarkOpenStreetMap(
+                      myLat: myLat,
+                      myLng: myLng,
+                      partnerLat: livePartnerLat,
+                      partnerLng: livePartnerLng,
+                      partnerName: name,
+                      photoUrl: photoUrl,
+                      isOnline: isOnline,
+                    )
+                  : Center(
+                      child: AnimatedBuilder(
+                        animation: _pulseController,
+                        builder: (context, child) {
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CustomPaint(
+                                painter: _CosmicRadarPainter(
+                                  pulseVal: _pulseController.value,
+                                  isOnline: isOnline,
+                                ),
+                                size: const Size(280, 280),
+                              ),
+
+                              // Center Avatar with Live Glow
+                              Container(
+                                width: 82,
+                                height: 82,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (isOnline
+                                              ? AstraTheme.accentOnline
+                                              : AstraTheme.primary)
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 22,
+                                      spreadRadius: 4,
+                                    ),
+                                  ],
+                                ),
+                                child: CircleAvatar(
+                                  backgroundColor: AstraTheme.cardSurface,
+                                  backgroundImage: photoUrl != null
+                                      ? NetworkImage(photoUrl)
+                                      : null,
+                                  child: photoUrl == null
+                                      ? Text(
+                                          name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+
+                              // Live Status Pill on Radar
+                              Positioned(
+                                bottom: 18,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isOnline
+                                          ? AstraTheme.accentOnline.withValues(alpha: 0.5)
+                                          : AstraTheme.borderSubtle,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: isOnline
+                                              ? AstraTheme.accentOnline
+                                              : AstraTheme.accentOffline,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        isOnline ? 'Online now' : 'Offline',
+                                        style: TextStyle(
+                                          color: isOnline
+                                              ? AstraTheme.accentOnline
+                                              : AstraTheme.textSecondary,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
-                  ],
-                );
-              },
             ),
-          ),
-        ),
 
         // Partner Info Bottom Card (Glassmorphic)
         Container(
@@ -843,6 +950,209 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ],
+    );
+      },
+    );
+  }
+
+  // -------------------------------------------------------------
+  // FREE DARK OPENSTREETMAP (CartoDB Dark Matter / OSM)
+  // -------------------------------------------------------------
+  Widget _buildDarkOpenStreetMap({
+    required double? myLat,
+    required double? myLng,
+    required double? partnerLat,
+    required double? partnerLng,
+    required String partnerName,
+    required String? photoUrl,
+    required bool isOnline,
+  }) {
+    final hasMyLoc = myLat != null && myLng != null;
+    final hasPartnerLoc = partnerLat != null && partnerLng != null;
+
+    final initialCenter = hasPartnerLoc
+        ? ll.LatLng(partnerLat, partnerLng)
+        : (hasMyLoc ? ll.LatLng(myLat, myLng) : const ll.LatLng(20.5937, 78.9629)); // India fallback center
+
+    final markers = <Marker>[];
+
+    // Current User Marker (Glowing Cyan Core)
+    if (hasMyLoc) {
+      markers.add(
+        Marker(
+          point: ll.LatLng(myLat, myLng),
+          width: 50,
+          height: 50,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AstraTheme.accentCyan.withValues(alpha: 0.25),
+                  border: Border.all(color: AstraTheme.accentCyan, width: 2),
+                ),
+              ),
+              Container(
+                width: 16,
+                height: 16,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AstraTheme.accentCyan,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AstraTheme.accentCyan,
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Partner Marker (Glowing Avatar Pin)
+    if (hasPartnerLoc) {
+      markers.add(
+        Marker(
+          point: ll.LatLng(partnerLat, partnerLng),
+          width: 60,
+          height: 60,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isOnline ? AstraTheme.accentOnline : AstraTheme.primary,
+                    width: 2.5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isOnline ? AstraTheme.accentOnline : AstraTheme.primary).withValues(alpha: 0.6),
+                      blurRadius: 16,
+                      spreadRadius: 3,
+                    ),
+                  ],
+                ),
+                child: ClipOval(
+                  child: photoUrl != null
+                      ? Image.network(photoUrl, fit: BoxFit.cover)
+                      : Container(
+                          color: AstraTheme.cardSurface,
+                          child: Center(
+                            child: Text(
+                              partnerName.isNotEmpty ? partnerName[0].toUpperCase() : 'P',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              Positioned(
+                bottom: 2,
+                right: 4,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: isOnline ? AstraTheme.accentOnline : AstraTheme.accentOffline,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AstraTheme.cardSurface, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final polylines = <Polyline>[];
+    if (hasMyLoc && hasPartnerLoc) {
+      polylines.add(
+        Polyline(
+          points: [
+            ll.LatLng(myLat, myLng),
+            ll.LatLng(partnerLat, partnerLng),
+          ],
+          strokeWidth: 3.0,
+          color: AstraTheme.primaryLight.withValues(alpha: 0.8),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Stack(
+        children: [
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: initialCenter,
+              initialZoom: hasMyLoc && hasPartnerLoc ? 12.0 : 14.0,
+              minZoom: 3.0,
+              maxZoom: 18.0,
+            ),
+            children: [
+              // 100% Free CartoDB Dark Matter Tiles (OpenStreetMap data)
+              TileLayer(
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
+                userAgentPackageName: 'com.croto.astra',
+              ),
+              if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
+              MarkerLayer(markers: markers),
+            ],
+          ),
+
+          // Re-center Floating Action Button
+          if (hasPartnerLoc || hasMyLoc)
+            Positioned(
+              right: 14,
+              bottom: 14,
+              child: FloatingActionButton.small(
+                backgroundColor: AstraTheme.cardSurface,
+                foregroundColor: AstraTheme.accentCyan,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: AstraTheme.borderSubtle),
+                ),
+                onPressed: () {
+                  if (hasMyLoc && hasPartnerLoc) {
+                    final bounds = LatLngBounds(
+                      ll.LatLng(myLat, myLng),
+                      ll.LatLng(partnerLat, partnerLng),
+                    );
+                    _mapController.fitCamera(
+                      CameraFit.bounds(
+                        bounds: bounds,
+                        padding: const EdgeInsets.all(48),
+                      ),
+                    );
+                  } else if (hasPartnerLoc) {
+                    _mapController.move(ll.LatLng(partnerLat, partnerLng), 14.0);
+                  } else if (hasMyLoc) {
+                    _mapController.move(ll.LatLng(myLat, myLng), 14.0);
+                  }
+                },
+                child: const Icon(Icons.my_location, size: 20),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
