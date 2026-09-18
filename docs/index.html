@@ -1,15 +1,19 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Astra — Closer. Always. | Download for Android & iOS</title>
-  <link rel="shortcut icon" href="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" type="image/x-icon">
-  <meta name="description" content="Astra — Download connection app for Android and iOS. Live status widgets, phone pairing, battery & distance sync.">
+  <link rel="shortcut icon"
+    href="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" type="image/x-icon">
+  <meta name="description"
+    content="Astra — Download connection app for Android and iOS. Live status widgets, phone pairing, battery & distance sync.">
   <link rel="canonical" href="https://astra.croto.in/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
   <style>
     :root {
@@ -37,23 +41,28 @@
       width: 6px;
       height: 6px;
     }
+
     ::-webkit-scrollbar-track {
       background: rgba(12, 9, 28, 0.6);
       border-radius: 10px;
     }
+
     ::-webkit-scrollbar-thumb {
       background: rgba(124, 92, 252, 0.45);
       border-radius: 10px;
     }
+
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(155, 123, 250, 0.8);
     }
+
     * {
       scrollbar-width: thin;
       scrollbar-color: rgba(124, 92, 252, 0.45) rgba(12, 9, 28, 0.6);
     }
 
-    html, body {
+    html,
+    body {
       min-height: 100vh;
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
       color: #eaf0ff;
@@ -366,8 +375,15 @@
     }
 
     @keyframes menuFade {
-      from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
     .dropdown-menu a {
@@ -525,7 +541,8 @@
       padding-right: 10px;
     }
 
-    .changelog-content h2, .changelog-content h3 {
+    .changelog-content h2,
+    .changelog-content h3 {
       color: #fff;
       font-size: 15px;
       margin: 14px 0 6px 0;
@@ -564,14 +581,17 @@
     .screenshots-scroll::-webkit-scrollbar {
       height: 6px;
     }
+
     .screenshots-scroll::-webkit-scrollbar-track {
       background: rgba(255, 255, 255, 0.04);
       border-radius: 999px;
     }
+
     .screenshots-scroll::-webkit-scrollbar-thumb {
       background: rgba(124, 92, 252, 0.4);
       border-radius: 999px;
     }
+
     .screenshots-scroll::-webkit-scrollbar-thumb:hover {
       background: var(--accent);
     }
@@ -649,28 +669,179 @@
 
     /* Responsive */
     @media (max-width: 960px) {
+      .wrap {
+        padding: 20px 16px 40px 16px;
+      }
+
+      .site-header {
+        margin-bottom: 24px;
+      }
+
       .hero {
         grid-template-columns: 1fr;
-        gap: 32px;
+        gap: 28px;
+        margin-bottom: 36px;
       }
+
       .hero-right {
         order: -1;
       }
+
       .site-footer {
         flex-direction: column;
         align-items: center;
         text-align: center;
       }
     }
+
+    @media (max-width: 600px) {
+      .wrap {
+        padding: 16px 14px 36px 14px;
+      }
+
+      .site-header {
+        margin-bottom: 24px;
+        gap: 8px;
+      }
+
+      .brand {
+        gap: 10px;
+      }
+
+      .brand-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+      }
+
+      .brand-name {
+        font-size: 16px;
+      }
+
+      .brand-sub {
+        display: none;
+      }
+
+      .nav-links {
+        gap: 8px;
+      }
+
+      .nav-link {
+        display: none;
+        /* Hide Releases/Screenshots links on tiny phone headers to prevent overflow */
+      }
+
+      .btn-github {
+        padding: 6px 10px;
+        font-size: 11px;
+        gap: 5px;
+      }
+
+      .btn-github svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .hero {
+        gap: 24px;
+        margin-bottom: 28px;
+      }
+
+      .badge {
+        margin-bottom: 12px;
+        font-size: 11px;
+        padding: 5px 12px;
+      }
+
+      .hero h1 {
+        font-size: 26px;
+        line-height: 1.2;
+      }
+
+      .lead {
+        font-size: 13.5px;
+        line-height: 1.5;
+        margin: 8px 0 16px 0;
+      }
+
+      /* Mockup & stats responsive */
+      .mockup-container {
+        width: min(240px, 75vw);
+        height: min(240px, 75vw);
+        border-radius: 24px;
+      }
+
+      .mockup-img {
+        border-radius: 23px;
+      }
+
+      .quick-stats {
+        width: min(240px, 75vw);
+        padding: 8px 10px;
+      }
+
+      .quick-stats strong {
+        font-size: 13.5px;
+      }
+
+      .quick-stats span {
+        font-size: 9.5px;
+      }
+
+      /* Buttons stack on mobile */
+      .download-group {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+      }
+
+      .dropdown-container {
+        width: 100%;
+      }
+
+      .btn {
+        width: 100%;
+        justify-content: center;
+        padding: 12px 16px;
+        font-size: 13px;
+      }
+
+      .dropdown-menu {
+        min-width: 100%;
+        width: 100%;
+      }
+
+      .changelog-section {
+        padding: 16px;
+        border-radius: 16px;
+      }
+
+      .changelog-head h3 {
+        font-size: 14px;
+      }
+
+      .screenshot-card {
+        flex: 0 0 150px;
+        border-radius: 16px;
+      }
+
+      .meta {
+        font-size: 10.5px;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+    }
   </style>
 </head>
+
 <body>
 
   <div class="wrap">
     <!-- Header -->
     <header class="site-header">
       <a href="#" class="brand">
-        <img src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png" alt="Astra logo" class="brand-icon">
+        <img src="https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png"
+          alt="Astra logo" class="brand-icon">
         <div class="brand-text">
           <div class="brand-name">Astra</div>
           <div class="brand-sub">Closer. Always.</div>
@@ -682,7 +853,8 @@
         <a href="#screenshots" class="nav-link">Screenshots</a>
         <a href="https://github.com/AkashKumar-Behera/Astra" target="_blank" class="btn-github">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+            <path fill-rule="evenodd" clip-rule="evenodd"
+              d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
           </svg>
           <span>GitHub</span>
         </a>
@@ -698,14 +870,14 @@
         </div>
         <h1>Astra — <span>Stay Connected Always</span></h1>
         <p class="lead">
-          Connect with your favorite person. Real-time widget status, battery & distance sync, instant phone pairing, and shared memories.
+          Connect with your favorite person. Real-time widget status, battery & distance sync, instant phone pairing,
+          and shared memories.
         </p>
 
         <!-- Horizontal Version Scroller -->
         <div class="version-selector-container">
           <div class="version-selector-header">
             <span>Select Release Build</span>
-            <span id="active-release-title" style="color:var(--accent);">v1.0.2 Stable</span>
           </div>
           <div id="versions-carousel" class="version-scroller">
             <div style="font-size:12px; color:var(--muted);">Loading versions from GitHub...</div>
@@ -714,12 +886,13 @@
 
         <!-- Download Buttons with Architecture Dropdowns -->
         <div class="download-group">
-          
+
           <!-- Android Dropdown Container -->
           <div class="dropdown-container">
             <button class="btn primary" id="btn-android-trigger" aria-haspopup="true" aria-expanded="false">
               <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.411 13.844 8.125 12 8.125c-1.844 0-3.5847.286-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/>
+                <path
+                  d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5847 8.411 13.844 8.125 12 8.125c-1.844 0-3.5847.286-5.1368.8247L4.8409 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396" />
               </svg>
               <div class="btn-text-block">
                 <span>Download for Android</span>
@@ -730,14 +903,17 @@
               <a href="#" id="link-apk-primary" download>
                 <span class="arch-name">
                   <span>ARM64-v8a</span>
-                  <span style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(0,230,118,0.15); color:#00E676; border:1px solid rgba(0,230,118,0.3);">Recommended</span>
+                  <span
+                    style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(0,230,118,0.15); color:#00E676; border:1px solid rgba(0,230,118,0.3);">Recommended</span>
                 </span>
                 <span class="arch-desc">⚡ Lean & Fast (~20 MB) — For modern Android phones</span>
               </a>
               <a href="#" id="link-apk-fallback" download>
                 <span class="arch-name">
                   <span>Universal APK</span>
-                  <span style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.08); color:var(--muted);">All Devices</span>
+                  <span
+                    style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,0.08); color:var(--muted);">All
+                    Devices</span>
                 </span>
                 <span class="arch-desc">📦 All-in-one APK package with universal compatibility</span>
               </a>
@@ -748,7 +924,8 @@
           <div class="dropdown-container">
             <button class="btn outline" id="btn-ios-trigger" aria-haspopup="true" aria-expanded="false">
               <svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z"/>
+                <path
+                  d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.62-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.36-.58.68-1.09 1.76-.95 2.8 1.01.08 2.06-.56 2.68-1.31z" />
               </svg>
               <div class="btn-text-block">
                 <span>Download for iOS</span>
@@ -759,7 +936,8 @@
               <a href="#" id="link-ipa-direct" download>
                 <span class="arch-name">
                   <span>Direct IPA File</span>
-                  <span style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(124,92,252,0.2); color:#c4b5fd;">Direct</span>
+                  <span
+                    style="font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(124,92,252,0.2); color:#c4b5fd;">Direct</span>
                 </span>
                 <span class="arch-desc">📱 Direct app package for AltStore, TrollStore, or Sideloadly</span>
               </a>
@@ -779,16 +957,14 @@
           </div>
 
         </div>
-
-        <div class="meta">
-          <span>🔒 Direct GitHub Releases</span> • <span>✨ 100% Free</span> • <span>⚡ Instant Phone Search</span>
-        </div>
       </div>
 
       <!-- Right Mockup / Stats -->
       <aside class="hero-right">
         <div class="mockup-container">
-          <img src="../assets/images/Astra.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png'" alt="Astra App Logo" class="mockup-img">
+          <img src="../assets/images/Astra.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/assets/images/Astra.png'"
+            alt="Astra App Logo" class="mockup-img">
         </div>
         <div class="quick-stats">
           <div><strong>4.9 ★</strong><span>Rating</span></div>
@@ -827,32 +1003,49 @@
         </svg>
         App Experience & UI
       </h2>
-      <p class="section-subtitle">A glimpse into intimate pairing, real-time battery status, distance tracker, and private space.</p>
+      <p class="section-subtitle">A glimpse into intimate pairing, real-time battery status, distance tracker, and
+        private space.</p>
 
       <div class="screenshots-scroll">
         <div class="screenshot-card">
-          <img src="screenshots/Screen1.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen1.png'" alt="Astra UI Screen 1" loading="lazy">
+          <img src="screenshots/Screen1.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen1.png'"
+            alt="Astra UI Screen 1" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen2.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen2.png'" alt="Astra UI Screen 2" loading="lazy">
+          <img src="screenshots/Screen2.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen2.png'"
+            alt="Astra UI Screen 2" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen3.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen3.png'" alt="Astra UI Screen 3" loading="lazy">
+          <img src="screenshots/Screen3.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen3.png'"
+            alt="Astra UI Screen 3" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen4.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen4.png'" alt="Astra UI Screen 4" loading="lazy">
+          <img src="screenshots/Screen4.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen4.png'"
+            alt="Astra UI Screen 4" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen5.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen5.png'" alt="Astra UI Screen 5" loading="lazy">
+          <img src="screenshots/Screen5.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen5.png'"
+            alt="Astra UI Screen 5" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen6.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen6.png'" alt="Astra UI Screen 6" loading="lazy">
+          <img src="screenshots/Screen6.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen6.png'"
+            alt="Astra UI Screen 6" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen7.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen7.png'" alt="Astra UI Screen 7" loading="lazy">
+          <img src="screenshots/Screen7.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen7.png'"
+            alt="Astra UI Screen 7" loading="lazy">
         </div>
         <div class="screenshot-card">
-          <img src="screenshots/Screen8.png" onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen8.png'" alt="Astra UI Screen 8" loading="lazy">
+          <img src="screenshots/Screen8.png"
+            onerror="this.src='https://raw.githubusercontent.com/AkashKumar-Behera/Astra/main/docs/screenshots/Screen8.png'"
+            alt="Astra UI Screen 8" loading="lazy">
         </div>
       </div>
     </section>
@@ -910,7 +1103,7 @@
 
       allReleases.forEach((rel, idx) => {
         const isBeta = rel.prerelease || rel.tag_name.toLowerCase().includes('beta');
-        const d = rel.published_at 
+        const d = rel.published_at
           ? new Date(rel.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           : '';
 
@@ -936,7 +1129,8 @@
     function selectRelease(rel) {
       const isBeta = rel.prerelease || rel.tag_name.toLowerCase().includes('beta');
       document.getElementById('badge-version-text').innerText = `${rel.tag_name} • ${isBeta ? 'Beta' : 'Latest Stable'}`;
-      document.getElementById('active-release-title').innerText = `${rel.tag_name} ${isBeta ? '(Beta)' : '(Stable)'}`;
+      const activeTitle = document.getElementById('active-release-title');
+      if (activeTitle) activeTitle.innerText = `${rel.tag_name} ${isBeta ? '(Beta)' : '(Stable)'}`;
       document.getElementById('notes-ver-name').innerText = rel.tag_name;
 
       if (rel.published_at) {
@@ -947,8 +1141,8 @@
       }
 
       // Notes
-      document.getElementById('notes-content').innerHTML = rel.body 
-        ? formatMarkdown(rel.body) 
+      document.getElementById('notes-content').innerHTML = rel.body
+        ? formatMarkdown(rel.body)
         : 'Performance improvements and bug fixes.';
 
       // Assets
@@ -1045,4 +1239,5 @@
     loadReleases();
   </script>
 </body>
+
 </html>
