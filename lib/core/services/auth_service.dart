@@ -188,8 +188,18 @@ class AuthService {
     }
   }
 
-  /// Sign out
+  /// Sign out and clean up device token
   static Future<void> signOut() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      try {
+        await _firestore.collection('users').doc(uid).collection('devices').get().then((snap) {
+          for (final doc in snap.docs) {
+            doc.reference.delete();
+          }
+        });
+      } catch (_) {}
+    }
     await _auth.signOut();
   }
 }

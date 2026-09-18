@@ -43,6 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/build/
+.gradle/
+android/.gradle/
 
 # Sensitive credentials & Firebase config (DO NOT COMMIT TO GITHUB)
 android/app/google-services.json

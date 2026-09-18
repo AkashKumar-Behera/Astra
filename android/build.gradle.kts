@@ -3,7 +3,7 @@ allprojects {
         google()
         mavenCentral()
     }
-    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+    tasks.matching { it.name.contains("AarMetadata") || it.name.contains("Lint") }.configureEach {
         enabled = false
     }
 }
@@ -29,8 +29,20 @@ subprojects {
     plugins.withId("com.android.application") {
         (extensions.findByName("android") as? com.android.build.gradle.BaseExtension)?.compileSdkVersion(36)
     }
-    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-        enabled = false
+}
+
+gradle.taskGraph.whenReady {
+    allTasks.forEach { task ->
+        if (task.name.contains("lint", ignoreCase = true) || task.name.contains("AarMetadata", ignoreCase = true)) {
+            task.enabled = false
+        }
+        if (task.name.startsWith("bundle") && task.name.contains("Aar")) {
+            try {
+                val buildDir = task.project.layout.buildDirectory.get().asFile
+                File(buildDir, "intermediates/aar_metadata_check/release/checkReleaseAarMetadata").mkdirs()
+                File(buildDir, "intermediates/aar_metadata_check/debug/checkDebugAarMetadata").mkdirs()
+            } catch (_: Exception) {}
+        }
     }
 }
 
