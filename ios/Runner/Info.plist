@@ -24,6 +24,12 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Astra uses your location to show cosmic distance and live status with your connected friend.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Astra needs location access to keep distance and presence updated for your connected partner.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Astra uses your contacts to find friends who are already using the app and allow you to invite others.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

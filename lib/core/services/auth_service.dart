@@ -67,6 +67,21 @@ class AuthService {
     }
   }
 
+  /// Updates current user's live coordinates in Firestore
+  static Future<void> updateUserLocation({
+    required String uid,
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({
+        'latitude': latitude,
+        'longitude': longitude,
+        'lastLocationUpdate': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
+  }
+
   /// Search user by phone number (clean exact match, with or without +91)
   static Future<Map<String, dynamic>?> searchUserByPhone(String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
@@ -136,9 +151,41 @@ class AuthService {
     });
   }
 
-  /// Stream user connections list with details
+  /// Stream user document with details
   static Stream<DocumentSnapshot<Map<String, dynamic>>> streamUser(String uid) {
     return _firestore.collection('users').doc(uid).snapshots();
+  }
+
+  /// Stream partner document with live updates
+  static Stream<DocumentSnapshot<Map<String, dynamic>>> streamPartner(String partnerUid) {
+    return _firestore.collection('users').doc(partnerUid).snapshots();
+  }
+
+  /// Removes connection between current user and target user
+  static Future<void> removeConnection({
+    required String currentUid,
+    required String targetUid,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(currentUid).update({
+        'connections': FieldValue.arrayRemove([targetUid]),
+        'pairedWith': null,
+      });
+      await _firestore.collection('users').doc(targetUid).update({
+        'connections': FieldValue.arrayRemove([currentUid]),
+        'pairedWith': null,
+      });
+    } catch (_) {}
+  }
+
+  /// Fetch all users to match against local phone contacts
+  static Future<List<Map<String, dynamic>>> fetchAllRegisteredUsers() async {
+    try {
+      final snap = await _firestore.collection('users').limit(300).get();
+      return snap.docs.map((doc) => doc.data()).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Sign out
