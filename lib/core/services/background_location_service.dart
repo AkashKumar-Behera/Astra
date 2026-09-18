@@ -55,7 +55,6 @@ class BackgroundLocationManager {
     try {
       await Workmanager().initialize(
         callbackDispatcher,
-        isInDebugMode: false,
       );
 
       await Workmanager().registerPeriodicTask(
@@ -65,7 +64,7 @@ class BackgroundLocationManager {
         constraints: Constraints(
           networkType: NetworkType.connected,
         ),
-        existingWorkPolicy: ExistingWorkPolicy.keep,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       );
     } catch (_) {}
   }
