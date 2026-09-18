@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,8 +10,10 @@ import 'package:firebase_database/firebase_database.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/services/location_rtdb_service.dart';
+import '../../core/services/telemetry_service.dart';
 import '../../core/theme/astra_theme.dart';
-import '../auth/phone_auth_screen.dart';
+import '../chat/chat_screen.dart';
+import '../settings/profile_settings_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -31,10 +32,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   Position? _currentPosition;
-  bool _isGettingLocation = false;
   late AnimationController _pulseController;
-  bool _isMapView = false;
   final MapController _mapController = MapController();
+  int _selectedPartnerIndex = 0;
+
+  // Dark Matrix Color Filter to turn standard OSM tiles into Pure Midnight Cosmic Dark Map
+  static const ColorFilter _darkOsmMatrix = ColorFilter.matrix(<double>[
+    -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
+    -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
+    -0.2126 * 0.95, -0.7152 * 0.95, -0.0722 * 0.95, 0, 255 * 1.05,
+    0,              0,              0,              1, 0,
+  ]);
 
   @override
   void initState() {
@@ -45,36 +53,32 @@ class _HomeScreenState extends State<HomeScreen>
     )..repeat();
 
     _initLocation();
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      TelemetryService.startTelemetrySync(uid);
+    }
   }
 
   @override
   void dispose() {
+    TelemetryService.dispose();
     _pulseController.dispose();
     super.dispose();
   }
 
   Future<void> _initLocation() async {
-    setState(() => _isGettingLocation = true);
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) setState(() => _isGettingLocation = false);
-        return;
-      }
+      if (!serviceEnabled) return;
 
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          if (mounted) setState(() => _isGettingLocation = false);
-          return;
-        }
+        if (permission == LocationPermission.denied) return;
       }
 
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) setState(() => _isGettingLocation = false);
-        return;
-      }
+      if (permission == LocationPermission.deniedForever) return;
 
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
@@ -83,7 +87,6 @@ class _HomeScreenState extends State<HomeScreen>
       if (mounted) {
         setState(() {
           _currentPosition = position;
-          _isGettingLocation = false;
         });
       }
 
@@ -102,9 +105,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ]);
       }
-    } catch (_) {
-      if (mounted) setState(() => _isGettingLocation = false);
-    }
+    } catch (_) {}
   }
 
   void _openContactsModal() {
@@ -119,140 +120,29 @@ class _HomeScreenState extends State<HomeScreen>
   void _openSettingsModal(String myPhone) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        decoration: BoxDecoration(
-          color: AstraTheme.cardSurface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          border: Border.all(color: AstraTheme.borderSubtle),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 26,
-                    backgroundColor: AstraTheme.primary.withValues(alpha: 0.2),
-                    backgroundImage: widget.photoUrl != null
-                        ? NetworkImage(widget.photoUrl!)
-                        : null,
-                    child: widget.photoUrl == null
-                        ? Text(
-                            widget.userName.isNotEmpty
-                                ? widget.userName[0].toUpperCase()
-                                : 'A',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.userName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          myPhone.isNotEmpty ? myPhone : 'Connected via Astra',
-                          style: const TextStyle(
-                            color: AstraTheme.textSecondary,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              const Divider(color: AstraTheme.borderSubtle),
-              const SizedBox(height: 12),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.location_on_outlined,
-                      color: AstraTheme.accentCyan, size: 20),
-                ),
-                title: const Text(
-                  'Refresh My GPS Location',
-                  style: TextStyle(color: Colors.white, fontSize: 15),
-                ),
-                subtitle: Text(
-                  _currentPosition != null
-                      ? 'Lat: ${_currentPosition!.latitude.toStringAsFixed(3)}, Lng: ${_currentPosition!.longitude.toStringAsFixed(3)}'
-                      : 'Not acquired yet',
-                  style: const TextStyle(
-                      color: AstraTheme.textSecondary, fontSize: 12),
-                ),
-                trailing: _isGettingLocation
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: AstraTheme.primary),
-                      )
-                    : const Icon(Icons.refresh, color: Colors.white70, size: 20),
-                onTap: _isGettingLocation ? null : _initLocation,
-              ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white10,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.logout,
-                      color: Colors.redAccent, size: 20),
-                ),
-                title: const Text(
-                  'Log Out',
-                  style: TextStyle(color: Colors.redAccent, fontSize: 15),
-                ),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await AuthService.signOut();
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const PhoneAuthScreen()),
-                      (route) => false,
-                    );
-                  }
-                },
-              ),
-            ],
-          ),
+      builder: (context) => ProfileSettingsModal(
+        initialName: widget.userName,
+        initialPhotoUrl: widget.photoUrl,
+        myPhone: myPhone,
+      ),
+    );
+  }
+
+  void _openChat(Map<String, dynamic> partner, bool isOnline) {
+    final uid = partner['uid'] as String? ?? '';
+    final name = (partner['name'] as String?) ?? 'Friend';
+    final photo = partner['photoUrl'] as String?;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          partnerUid: uid,
+          partnerName: name,
+          partnerPhoto: photo,
+          isOnline: isOnline,
         ),
       ),
     );
@@ -276,20 +166,18 @@ class _HomeScreenState extends State<HomeScreen>
         title: Text('Disconnect from $name?',
             style: const TextStyle(color: Colors.white, fontSize: 18)),
         content: const Text(
-          'You will no longer share live radar and location with each other.',
+          'You will no longer share live map radar, telemetry and chat with each other.',
           style: TextStyle(color: AstraTheme.textSecondary, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel',
-                style: TextStyle(color: AstraTheme.textSecondary)),
+            child: const Text('Cancel', style: TextStyle(color: AstraTheme.textSecondary)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AstraTheme.accentDanger,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () async {
               Navigator.pop(ctx);
@@ -314,7 +202,19 @@ class _HomeScreenState extends State<HomeScreen>
       return '${meters.round()} m away';
     } else {
       final km = meters / 1000.0;
-      return '${km.toStringAsFixed(1)} km away';
+      return '${km.toStringAsFixed(1)} km';
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPartnersData(List<String> uids) async {
+    if (uids.isEmpty) return [];
+    try {
+      final docs = await Future.wait(
+        uids.map((uid) => FirebaseFirestore.instance.collection('users').doc(uid).get()),
+      );
+      return docs.where((d) => d.exists && d.data() != null).map((d) => d.data()!).toList();
+    } catch (_) {
+      return [];
     }
   }
 
@@ -328,163 +228,159 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (context, userSnap) {
         final userData = userSnap.data?.data();
         final myPhone = (userData?['phoneNumber'] as String?) ?? '';
-        final connections = List<String>.from(userData?['connections'] ?? []);
-        final String? partnerUid =
-            connections.isNotEmpty ? connections.first : null;
+        final connectionUids = List<String>.from(userData?['connections'] ?? []);
 
         return Scaffold(
           backgroundColor: AstraTheme.background,
           body: Stack(
             children: [
-              // Background Space Graphic
+              // 1. FULL BACKGROUND DARK OSM MAP
               Positioned.fill(
-                child: Image.asset(
-                  'assets/images/Bg image.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _fetchPartnersData(connectionUids),
+                  builder: (context, partnersSnap) {
+                    final partners = partnersSnap.data ?? [];
+                    return _buildFullDarkMap(
+                      myLat: _currentPosition?.latitude,
+                      myLng: _currentPosition?.longitude,
+                      partners: partners,
+                    );
+                  },
                 ),
               ),
 
-              // Cosmic Dark Gradient Overlay
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AstraTheme.background.withValues(alpha: 0.4),
-                        AstraTheme.background.withValues(alpha: 0.75),
-                        AstraTheme.background,
+              // 2. TOP FLOATING APP BAR (Header matching Screen4)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left Astra Pill
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AstraTheme.cardSurface.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: AstraTheme.borderSubtle),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                blurRadius: 12,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/images/Astra.png',
+                                width: 22,
+                                height: 22,
+                                errorBuilder: (ctx, error, stackTrace) => const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 20),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Astra',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Right Actions: Add Contact & Settings Icon
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AstraTheme.cardSurface.withValues(alpha: 0.85),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AstraTheme.borderSubtle),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.person_add_alt_1, color: Colors.white70, size: 20),
+                                onPressed: _openContactsModal,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AstraTheme.cardSurface.withValues(alpha: 0.85),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AstraTheme.borderSubtle),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 20),
+                                onPressed: () => _openSettingsModal(myPhone),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              SafeArea(
+              // 3. MAP RE-CENTER / ZOOM BUTTONS
+              Positioned(
+                right: 16,
+                bottom: MediaQuery.of(context).size.height * 0.38,
                 child: Column(
                   children: [
-                    // Top App Bar
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          GestureDetector(
-                            onTap: () => _openSettingsModal(myPhone),
-                            child: Row(
-                              children: [
-                                Stack(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 20,
-                                      backgroundColor: AstraTheme.primary
-                                          .withValues(alpha: 0.3),
-                                      backgroundImage: widget.photoUrl != null
-                                          ? NetworkImage(widget.photoUrl!)
-                                          : null,
-                                      child: widget.photoUrl == null
-                                          ? Text(
-                                              widget.userName.isNotEmpty
-                                                  ? widget.userName[0]
-                                                      .toUpperCase()
-                                                  : 'U',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                    Positioned(
-                                      bottom: 0,
-                                      right: 0,
-                                      child: Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(
-                                          color: AstraTheme.accentOnline,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                              color: AstraTheme.background,
-                                              width: 1.5),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      widget.userName,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          _currentPosition != null
-                                              ? 'GPS Active'
-                                              : 'Acquiring GPS...',
-                                          style: const TextStyle(
-                                            color: AstraTheme.accentCyan,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          // Right actions: Add friend / Settings
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.person_add_alt_1_outlined,
-                                    color: Colors.white70, size: 22),
-                                onPressed: _openContactsModal,
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.more_vert,
-                                    color: Colors.white70, size: 22),
-                                onPressed: () => _openSettingsModal(myPhone),
-                              ),
-                            ],
-                          ),
-                        ],
+                    FloatingActionButton.small(
+                      heroTag: 'recenter_btn',
+                      backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                      foregroundColor: AstraTheme.accentCyan,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: const BorderSide(color: AstraTheme.borderSubtle),
                       ),
+                      onPressed: () {
+                        if (_currentPosition != null) {
+                          _mapController.move(
+                            ll.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                            14.0,
+                          );
+                        }
+                      },
+                      child: const Icon(Icons.navigation_outlined, size: 20),
                     ),
-
-                    // Main Body: Connected Partner Radar OR Empty State
-                    Expanded(
-                      child: partnerUid == null
-                          ? _buildEmptyState()
-                          : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                              stream: AuthService.streamPartner(partnerUid),
-                              builder: (context, partnerSnap) {
-                                final pData = partnerSnap.data?.data();
-                                return _buildPartnerScreen(
-                                  currentUser.uid,
-                                  partnerUid,
-                                  pData,
-                                );
-                              },
-                            ),
+                    const SizedBox(height: 10),
+                    FloatingActionButton.small(
+                      heroTag: 'layers_btn',
+                      backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                      foregroundColor: Colors.white70,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: const BorderSide(color: AstraTheme.borderSubtle),
+                      ),
+                      onPressed: _openContactsModal,
+                      child: const Icon(Icons.layers_outlined, size: 20),
                     ),
                   ],
                 ),
+              ),
+
+              // 4. BOTTOM DRAGGABLE & EXPANDABLE SHEET (Matching Screen4.png)
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: _fetchPartnersData(connectionUids),
+                builder: (context, partnersSnap) {
+                  final partners = partnersSnap.data ?? [];
+                  return _buildDraggableTelemetrySheet(
+                    currentUid: currentUser.uid,
+                    partners: partners,
+                  );
+                },
               ),
             ],
           ),
@@ -494,521 +390,69 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // -------------------------------------------------------------
-  // EMPTY STATE: Screen5 with central glowing '+' Button
+  // FULLSCREEN DARK MATRIX OPENSTREETMAP (100% Free, No Watermark)
   // -------------------------------------------------------------
-  Widget _buildEmptyState() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Spacer(),
-        // Radar circle with pulsating '+'
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            return CustomPaint(
-              painter: _EmptyPulsePainter(_pulseController.value),
-              child: SizedBox(
-                width: 220,
-                height: 220,
-                child: Center(
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [AstraTheme.primary, AstraTheme.secondary],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AstraTheme.primary.withValues(alpha: 0.5),
-                          blurRadius: 28,
-                          spreadRadius: 6,
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(38),
-                        onTap: _openContactsModal,
-                        child: const Icon(
-                          Icons.add,
-                          color: Colors.white,
-                          size: 38,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 28),
-        const Text(
-          'Connect Your Space',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
-          child: Text(
-            'Tap + to discover friends from your contacts using Astra or invite them via WhatsApp.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AstraTheme.textSecondary,
-              fontSize: 14,
-              height: 1.4,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        ElevatedButton.icon(
-          onPressed: _openContactsModal,
-          icon: const Icon(Icons.person_add, size: 18),
-          label: const Text(
-            'Add Friend from Contacts',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AstraTheme.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
-            elevation: 8,
-            shadowColor: AstraTheme.primary.withValues(alpha: 0.5),
-          ),
-        ),
-        const Spacer(flex: 2),
-      ],
-    );
-  }
-
-  // -------------------------------------------------------------
-  // PARTNER VIEW: Screen5 Matching Cosmic Radar & Bottom Card
-  // -------------------------------------------------------------
-  Widget _buildPartnerScreen(
-    String currentUid,
-    String partnerUid,
-    Map<String, dynamic>? partnerData,
-  ) {
-    final name = (partnerData?['name'] as String?) ?? 'Partner';
-    final photoUrl = partnerData?['photoUrl'] as String?;
-    final phone = (partnerData?['phoneNumber'] as String?) ?? '';
-    final isOnline = partnerData?['isOnline'] as bool? ?? false;
-    final partnerLat = (partnerData?['latitude'] as num?)?.toDouble();
-    final partnerLng = (partnerData?['longitude'] as num?)?.toDouble();
-
-    final myLat = _currentPosition?.latitude;
-    final myLng = _currentPosition?.longitude;
-
-    return StreamBuilder<DatabaseEvent>(
-      stream: LocationRtdbService.streamPartnerLocation(partnerUid),
-      builder: (context, rtdbSnap) {
-        double? livePartnerLat = partnerLat;
-        double? livePartnerLng = partnerLng;
-
-        if (rtdbSnap.hasData && rtdbSnap.data!.snapshot.value != null) {
-          try {
-            final val = Map<dynamic, dynamic>.from(rtdbSnap.data!.snapshot.value as Map);
-            livePartnerLat = (val['latitude'] as num?)?.toDouble() ?? livePartnerLat;
-            livePartnerLng = (val['longitude'] as num?)?.toDouble() ?? livePartnerLng;
-          } catch (_) {}
-        }
-
-        final distanceText = _formatDistance(myLat, myLng, livePartnerLat, livePartnerLng);
-
-        return Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AstraTheme.cardSurface.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AstraTheme.borderSubtle),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () => setState(() => _isMapView = false),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: !_isMapView ? AstraTheme.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.radar, size: 14, color: !_isMapView ? Colors.white : AstraTheme.textSecondary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Radar',
-                                  style: TextStyle(
-                                    color: !_isMapView ? Colors.white : AstraTheme.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () => setState(() => _isMapView = true),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: _isMapView ? AstraTheme.primary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.map_outlined, size: 14, color: _isMapView ? Colors.white : AstraTheme.textSecondary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Live Map',
-                                  style: TextStyle(
-                                    color: _isMapView ? Colors.white : AstraTheme.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 6),
-
-            // Main View Area: Radar OR Dark OpenStreetMap
-            Expanded(
-              child: _isMapView
-                  ? _buildDarkOpenStreetMap(
-                      myLat: myLat,
-                      myLng: myLng,
-                      partnerLat: livePartnerLat,
-                      partnerLng: livePartnerLng,
-                      partnerName: name,
-                      photoUrl: photoUrl,
-                      isOnline: isOnline,
-                    )
-                  : Center(
-                      child: AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (context, child) {
-                          return Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              CustomPaint(
-                                painter: _CosmicRadarPainter(
-                                  pulseVal: _pulseController.value,
-                                  isOnline: isOnline,
-                                ),
-                                size: const Size(280, 280),
-                              ),
-
-                              // Center Avatar with Live Glow
-                              Container(
-                                width: 82,
-                                height: 82,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (isOnline
-                                              ? AstraTheme.accentOnline
-                                              : AstraTheme.primary)
-                                          .withValues(alpha: 0.4),
-                                      blurRadius: 22,
-                                      spreadRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: CircleAvatar(
-                                  backgroundColor: AstraTheme.cardSurface,
-                                  backgroundImage: photoUrl != null
-                                      ? NetworkImage(photoUrl)
-                                      : null,
-                                  child: photoUrl == null
-                                      ? Text(
-                                          name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-
-                              // Live Status Pill on Radar
-                              Positioned(
-                                bottom: 18,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isOnline
-                                          ? AstraTheme.accentOnline.withValues(alpha: 0.5)
-                                          : AstraTheme.borderSubtle,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 8,
-                                        height: 8,
-                                        decoration: BoxDecoration(
-                                          color: isOnline
-                                              ? AstraTheme.accentOnline
-                                              : AstraTheme.accentOffline,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        isOnline ? 'Online now' : 'Offline',
-                                        style: TextStyle(
-                                          color: isOnline
-                                              ? AstraTheme.accentOnline
-                                              : AstraTheme.textSecondary,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-            ),
-
-        // Partner Info Bottom Card (Glassmorphic)
-        Container(
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AstraTheme.cardSurface.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: AstraTheme.borderSubtle,
-              width: 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AstraTheme.primary.withValues(alpha: 0.25),
-                    backgroundImage:
-                        photoUrl != null ? NetworkImage(photoUrl) : null,
-                    child: photoUrl == null
-                        ? Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : 'P',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.near_me,
-                              size: 13,
-                              color: AstraTheme.accentCyan,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              distanceText,
-                              style: const TextStyle(
-                                color: AstraTheme.accentCyan,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Disconnect Menu
-                  IconButton(
-                    icon: const Icon(Icons.link_off,
-                        color: AstraTheme.textMuted, size: 22),
-                    tooltip: 'Disconnect',
-                    onPressed: () =>
-                        _disconnectPartner(currentUid, partnerUid, name),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 18),
-              const Divider(color: AstraTheme.borderSubtle, height: 1),
-              const SizedBox(height: 16),
-
-              // Action Buttons: Call & Change Friend
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _openContactsModal(),
-                      icon: const Icon(Icons.swap_horiz, size: 18),
-                      label: const Text('Change Friend',
-                          style: TextStyle(fontSize: 13)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        side: const BorderSide(color: AstraTheme.borderSubtle),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: phone.isNotEmpty ? () => _callPartner(phone) : null,
-                      icon: const Icon(Icons.call, size: 18),
-                      label: const Text('Call',
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AstraTheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 4,
-                        shadowColor: AstraTheme.primary.withValues(alpha: 0.4),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-      },
-    );
-  }
-
-  // -------------------------------------------------------------
-  // FREE DARK OPENSTREETMAP (CartoDB Dark Matter / OSM)
-  // -------------------------------------------------------------
-  Widget _buildDarkOpenStreetMap({
+  Widget _buildFullDarkMap({
     required double? myLat,
     required double? myLng,
-    required double? partnerLat,
-    required double? partnerLng,
-    required String partnerName,
-    required String? photoUrl,
-    required bool isOnline,
+    required List<Map<String, dynamic>> partners,
   }) {
     final hasMyLoc = myLat != null && myLng != null;
-    final hasPartnerLoc = partnerLat != null && partnerLng != null;
-
-    final initialCenter = hasPartnerLoc
-        ? ll.LatLng(partnerLat, partnerLng)
-        : (hasMyLoc ? ll.LatLng(myLat, myLng) : const ll.LatLng(20.5937, 78.9629)); // India fallback center
+    final initialCenter = hasMyLoc
+        ? ll.LatLng(myLat, myLng)
+        : const ll.LatLng(20.5937, 78.9629);
 
     final markers = <Marker>[];
+    final polylines = <Polyline>[];
 
-    // Current User Marker (Glowing Cyan Core)
+    // Current User Glowing Cyan Pin
     if (hasMyLoc) {
       markers.add(
         Marker(
           point: ll.LatLng(myLat, myLng),
-          width: 50,
-          height: 50,
-          child: Stack(
-            alignment: Alignment.center,
+          width: 80,
+          height: 80,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AstraTheme.accentCyan.withValues(alpha: 0.25),
-                  border: Border.all(color: AstraTheme.accentCyan, width: 2),
+                  color: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AstraTheme.accentCyan.withValues(alpha: 0.5)),
                 ),
+                child: const Text('You', style: TextStyle(color: AstraTheme.accentCyan, fontSize: 11, fontWeight: FontWeight.bold)),
               ),
-              Container(
-                width: 16,
-                height: 16,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AstraTheme.accentCyan,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AstraTheme.accentCyan,
-                      blurRadius: 10,
-                      spreadRadius: 2,
+              const SizedBox(height: 4),
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AstraTheme.accentCyan.withValues(alpha: 0.25),
+                      border: Border.all(color: AstraTheme.accentCyan, width: 2),
                     ),
-                  ],
-                ),
+                  ),
+                  Container(
+                    width: 18,
+                    height: 18,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AstraTheme.accentCyan,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AstraTheme.accentCyan,
+                          blurRadius: 12,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1016,237 +460,526 @@ class _HomeScreenState extends State<HomeScreen>
       );
     }
 
-    // Partner Marker (Glowing Avatar Pin)
-    if (hasPartnerLoc) {
-      markers.add(
-        Marker(
-          point: ll.LatLng(partnerLat, partnerLng),
-          width: 60,
-          height: 60,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: isOnline ? AstraTheme.accentOnline : AstraTheme.primary,
-                    width: 2.5,
+    // Partner Markers with Glowing Aura & Distance Badges
+    for (int i = 0; i < partners.length; i++) {
+      final p = partners[i];
+      final pLat = (p['latitude'] as num?)?.toDouble();
+      final pLng = (p['longitude'] as num?)?.toDouble();
+      final pName = (p['name'] as String?) ?? 'Friend';
+      final pPhoto = p['photoUrl'] as String?;
+      final isOnline = (p['isOnline'] as bool?) ?? false;
+
+      if (pLat != null && pLng != null) {
+        final distStr = _formatDistance(myLat, myLng, pLat, pLng);
+
+        // Dashed polyline between You & Partner
+        if (hasMyLoc) {
+          polylines.add(
+            Polyline(
+              points: [ll.LatLng(myLat, myLng), ll.LatLng(pLat, pLng)],
+              strokeWidth: 2.5,
+              color: AstraTheme.primaryLight.withValues(alpha: 0.7),
+            ),
+          );
+
+          // Center distance badge marker
+          final midLat = (myLat + pLat) / 2;
+          final midLng = (myLng + pLng) / 2;
+          markers.add(
+            Marker(
+              point: ll.LatLng(midLat, midLng),
+              width: 80,
+              height: 30,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AstraTheme.borderSubtle),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isOnline ? AstraTheme.accentOnline : AstraTheme.primary).withValues(alpha: 0.6),
-                      blurRadius: 16,
-                      spreadRadius: 3,
-                    ),
-                  ],
+                  child: Text(
+                    distStr,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
                 ),
-                child: ClipOval(
-                  child: photoUrl != null
-                      ? Image.network(photoUrl, fit: BoxFit.cover)
-                      : Container(
-                          color: AstraTheme.cardSurface,
-                          child: Center(
-                            child: Text(
-                              partnerName.isNotEmpty ? partnerName[0].toUpperCase() : 'P',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
+              ),
+            ),
+          );
+        }
+
+        // Partner Pin (Avatar + Time updated)
+        markers.add(
+          Marker(
+            point: ll.LatLng(pLat, pLng),
+            width: 80,
+            height: 90,
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _selectedPartnerIndex = i);
+                _openChat(p, isOnline);
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isOnline ? AstraTheme.accentOnline : AstraTheme.borderSubtle),
+                    ),
+                    child: Text(
+                      isOnline ? 'Online' : 'Active recently',
+                      style: TextStyle(
+                        color: isOnline ? AstraTheme.accentOnline : AstraTheme.textSecondary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: isOnline ? AstraTheme.accentOnline : AstraTheme.primary,
+                        width: 2.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isOnline ? AstraTheme.accentOnline : AstraTheme.primary).withValues(alpha: 0.6),
+                          blurRadius: 18,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: ClipOval(
+                      child: pPhoto != null
+                          ? Image.network(pPhoto, fit: BoxFit.cover)
+                          : Container(
+                              color: AstraTheme.cardSurface,
+                              child: Center(
+                                child: Text(
+                                  pName.isNotEmpty ? pName[0].toUpperCase() : 'P',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                ),
                               ),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    return FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        initialCenter: initialCenter,
+        initialZoom: hasMyLoc ? 13.5 : 5.0,
+        minZoom: 3.0,
+        maxZoom: 18.5,
+      ),
+      children: [
+        // 100% Free Standard OpenStreetMap with ColorFiltered Dark Matrix
+        ColorFiltered(
+          colorFilter: _darkOsmMatrix,
+          child: TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.croto.astra',
+          ),
+        ),
+        if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
+        MarkerLayer(markers: markers),
+      ],
+    );
+  }
+
+  // -------------------------------------------------------------
+  // DRAGGABLE & EXPANDABLE TELEMETRY BOTTOM SHEET (Screen4.png)
+  // -------------------------------------------------------------
+  Widget _buildDraggableTelemetrySheet({
+    required String currentUid,
+    required List<Map<String, dynamic>> partners,
+  }) {
+    if (partners.isEmpty) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.28,
+        minChildSize: 0.22,
+        maxChildSize: 0.85,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: AstraTheme.cardSurface.withValues(alpha: 0.95),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              border: Border.all(color: AstraTheme.borderSubtle, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  blurRadius: 28,
+                  offset: const Offset(0, -6),
+                ),
+              ],
+            ),
+            child: ListView(
+              controller: scrollController,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4.5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'No Partners Connected',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Tap + to discover and connect with friends from your contacts.',
+                  style: TextStyle(color: AstraTheme.textSecondary, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: _openContactsModal,
+                  icon: const Icon(Icons.person_add, size: 18),
+                  label: const Text('Add Friend from Contacts', style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AstraTheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    final partnerIndex = _selectedPartnerIndex < partners.length ? _selectedPartnerIndex : 0;
+    final activePartner = partners[partnerIndex];
+    final pUid = activePartner['uid'] as String? ?? '';
+    final pName = (activePartner['name'] as String?) ?? 'Partner';
+    final pPhoto = activePartner['photoUrl'] as String?;
+    final pPhone = (activePartner['phoneNumber'] as String?) ?? '';
+    final pStatus = (activePartner['status'] as String?) ?? 'Online';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.36,
+      minChildSize: 0.30,
+      maxChildSize: 0.88,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AstraTheme.cardSurface.withValues(alpha: 0.95),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            border: Border.all(color: AstraTheme.borderSubtle, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.6),
+                blurRadius: 30,
+                offset: const Offset(0, -8),
+              ),
+            ],
+          ),
+          child: StreamBuilder<DatabaseEvent>(
+            stream: TelemetryService.streamPartnerTelemetry(pUid),
+            builder: (context, teleSnap) {
+              int battery = 85;
+              String network = 'wifi';
+              bool isOnline = true;
+
+              if (teleSnap.hasData && teleSnap.data!.snapshot.value != null) {
+                try {
+                  final val = Map<dynamic, dynamic>.from(teleSnap.data!.snapshot.value as Map);
+                  battery = (val['battery'] as num?)?.toInt() ?? battery;
+                  network = (val['network'] as String?) ?? network;
+                  isOnline = (val['isOnline'] as bool?) ?? isOnline;
+                } catch (_) {}
+              }
+
+              return ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                children: [
+                  // Drag Handle Bar
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4.5,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Horizontal Partner Selector (if multiple friends)
+                  if (partners.length > 1) ...[
+                    SizedBox(
+                      height: 42,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: partners.length,
+                        itemBuilder: (ctx, idx) {
+                          final isSel = idx == partnerIndex;
+                          final p = partners[idx];
+                          final name = p['name'] ?? 'Friend';
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedPartnerIndex = idx),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSel ? AstraTheme.primary : Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isSel ? AstraTheme.primaryLight : AstraTheme.borderSubtle,
+                                ),
+                              ),
+                              child: Text(
+                                name,
+                                style: TextStyle(
+                                  color: isSel ? Colors.white : AstraTheme.textSecondary,
+                                  fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Profile Header Row (Screen4.png match)
+                  GestureDetector(
+                    onTap: () => _openChat(activePartner, isOnline),
+                    child: Row(
+                      children: [
+                        // Avatar with glowing ring
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
+                          backgroundImage: pPhoto != null ? NetworkImage(pPhoto) : null,
+                          child: pPhoto == null
+                              ? Text(
+                                  pName.isNotEmpty ? pName[0].toUpperCase() : 'P',
+                                  style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 14),
+
+                        // Partner Name & Telemetry Row
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                pName,
+                                style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+
+                              // Online status + Network + Battery badges
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: isOnline ? AstraTheme.accentOnline : AstraTheme.accentOffline,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isOnline ? 'Online • Just now' : 'Offline',
+                                    style: TextStyle(
+                                      color: isOnline ? AstraTheme.accentOnline : AstraTheme.textSecondary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+
+                                  // Network Icon (WiFi or Cellular)
+                                  Icon(
+                                    network == 'wifi' ? Icons.wifi : Icons.signal_cellular_alt,
+                                    size: 14,
+                                    color: Colors.white70,
+                                  ),
+                                  const SizedBox(width: 8),
+
+                                  // Battery Icon + Level
+                                  Icon(
+                                    battery > 20 ? Icons.battery_charging_full : Icons.battery_alert,
+                                    size: 14,
+                                    color: battery > 20 ? Colors.greenAccent : Colors.redAccent,
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '$battery%',
+                                    style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 4),
+                              // Location updated line
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on, size: 12, color: AstraTheme.accentCyan),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      pStatus,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Right Arrow to Chat
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Action Buttons Row: Call, Video, Direct Chat (Screen4.png match)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AstraTheme.borderSubtle),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: pPhone.isNotEmpty ? () => _callPartner(pPhone) : null,
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.call, color: Colors.white, size: 20),
+                                SizedBox(height: 4),
+                                Text('Call', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
                             ),
                           ),
                         ),
-                ),
-              ),
-              Positioned(
-                bottom: 2,
-                right: 4,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: isOnline ? AstraTheme.accentOnline : AstraTheme.accentOffline,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AstraTheme.cardSurface, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final polylines = <Polyline>[];
-    if (hasMyLoc && hasPartnerLoc) {
-      polylines.add(
-        Polyline(
-          points: [
-            ll.LatLng(myLat, myLng),
-            ll.LatLng(partnerLat, partnerLng),
-          ],
-          strokeWidth: 3.0,
-          color: AstraTheme.primaryLight.withValues(alpha: 0.8),
-        ),
-      );
-    }
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Stack(
-        children: [
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: initialCenter,
-              initialZoom: hasMyLoc && hasPartnerLoc ? 12.0 : 14.0,
-              minZoom: 3.0,
-              maxZoom: 18.0,
-            ),
-            children: [
-              // 100% Free CartoDB Dark Matter Tiles (OpenStreetMap data)
-              TileLayer(
-                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                subdomains: const ['a', 'b', 'c', 'd'],
-                userAgentPackageName: 'com.croto.astra',
-              ),
-              if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
-              MarkerLayer(markers: markers),
-            ],
-          ),
-
-          // Re-center Floating Action Button
-          if (hasPartnerLoc || hasMyLoc)
-            Positioned(
-              right: 14,
-              bottom: 14,
-              child: FloatingActionButton.small(
-                backgroundColor: AstraTheme.cardSurface,
-                foregroundColor: AstraTheme.accentCyan,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: const BorderSide(color: AstraTheme.borderSubtle),
-                ),
-                onPressed: () {
-                  if (hasMyLoc && hasPartnerLoc) {
-                    final bounds = LatLngBounds(
-                      ll.LatLng(myLat, myLng),
-                      ll.LatLng(partnerLat, partnerLng),
-                    );
-                    _mapController.fitCamera(
-                      CameraFit.bounds(
-                        bounds: bounds,
-                        padding: const EdgeInsets.all(48),
                       ),
-                    );
-                  } else if (hasPartnerLoc) {
-                    _mapController.move(ll.LatLng(partnerLat, partnerLng), 14.0);
-                  } else if (hasMyLoc) {
-                    _mapController.move(ll.LatLng(myLat, myLng), 14.0);
-                  }
-                },
-                child: const Icon(Icons.my_location, size: 20),
-              ),
-            ),
-        ],
-      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AstraTheme.borderSubtle),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => _openChat(activePartner, isOnline),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.videocam, color: Colors.white, size: 22),
+                                SizedBox(height: 4),
+                                Text('Video', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: AstraTheme.primary.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AstraTheme.primary.withValues(alpha: 0.5)),
+                          ),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(18),
+                            onTap: () => _openChat(activePartner, isOnline),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.chat_bubble_rounded, color: AstraTheme.primaryLight, size: 20),
+                                SizedBox(height: 4),
+                                Text('Direct Chat', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Disconnect / Change Friend Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.link_off, size: 16, color: AstraTheme.accentDanger),
+                        label: const Text('Disconnect', style: TextStyle(color: AstraTheme.accentDanger, fontSize: 12)),
+                        onPressed: () => _disconnectPartner(currentUid, pUid, pName),
+                      ),
+                      const SizedBox(width: 16),
+                      TextButton.icon(
+                        icon: const Icon(Icons.person_add_outlined, size: 16, color: AstraTheme.accentCyan),
+                        label: const Text('Add More Friends', style: TextStyle(color: AstraTheme.accentCyan, fontSize: 12)),
+                        onPressed: _openContactsModal,
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
     );
   }
-}
-
-// -------------------------------------------------------------
-// RADAR PAINTERS
-// -------------------------------------------------------------
-class _CosmicRadarPainter extends CustomPainter {
-  final double pulseVal;
-  final bool isOnline;
-
-  _CosmicRadarPainter({required this.pulseVal, required this.isOnline});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final baseRadius = size.width / 2;
-
-    final radarLinePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..color = AstraTheme.primary.withValues(alpha: 0.18)
-      ..strokeWidth = 1.0;
-
-    // Fixed concentric circles
-    canvas.drawCircle(center, baseRadius * 0.4, radarLinePaint);
-    canvas.drawCircle(center, baseRadius * 0.7, radarLinePaint);
-    canvas.drawCircle(center, baseRadius * 0.96, radarLinePaint);
-
-    // Crosshairs
-    final crossPaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..color = AstraTheme.primary.withValues(alpha: 0.12)
-      ..strokeWidth = 1.0;
-
-    canvas.drawLine(
-        Offset(center.dx - baseRadius, center.dy),
-        Offset(center.dx + baseRadius, center.dy),
-        crossPaint);
-    canvas.drawLine(
-        Offset(center.dx, center.dy - baseRadius),
-        Offset(center.dx, center.dy + baseRadius),
-        crossPaint);
-
-    // Animated ripple wave
-    final waveColor = isOnline ? AstraTheme.accentOnline : AstraTheme.primary;
-    final wavePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..color = waveColor.withValues(alpha: (1.0 - pulseVal) * 0.4)
-      ..strokeWidth = 2.0;
-
-    canvas.drawCircle(
-        center, (baseRadius * 0.35) + (pulseVal * baseRadius * 0.65), wavePaint);
-
-    // Small decorative satellites / stars
-    final starPaint = Paint()
-      ..color = AstraTheme.accentCyan.withValues(alpha: 0.6)
-      ..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 6; i++) {
-      final angle = (i * 60) * (math.pi / 180);
-      final pt = Offset(
-        center.dx + (baseRadius * 0.7) * math.cos(angle),
-        center.dy + (baseRadius * 0.7) * math.sin(angle),
-      );
-      canvas.drawCircle(pt, 2.5, starPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CosmicRadarPainter oldDelegate) {
-    return oldDelegate.pulseVal != pulseVal ||
-        oldDelegate.isOnline != isOnline;
-  }
-}
-
-class _EmptyPulsePainter extends CustomPainter {
-  final double pulse;
-
-  _EmptyPulsePainter(this.pulse);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final wavePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..color = AstraTheme.primary.withValues(alpha: (1.0 - pulse) * 0.4)
-      ..strokeWidth = 2.5;
-
-    canvas.drawCircle(center, 42 + (pulse * 35), wavePaint);
-    canvas.drawCircle(center, 55 + (pulse * 25), wavePaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _EmptyPulsePainter oldDelegate) => true;
 }
 
 // -------------------------------------------------------------
@@ -1256,8 +989,7 @@ class _ContactsAndSearchModal extends StatefulWidget {
   const _ContactsAndSearchModal();
 
   @override
-  State<_ContactsAndSearchModal> createState() =>
-      _ContactsAndSearchModalState();
+  State<_ContactsAndSearchModal> createState() => _ContactsAndSearchModalState();
 }
 
 class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
@@ -1298,12 +1030,8 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      final myDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUser.uid)
-          .get();
-      _myConnectedUserIds =
-          List<String>.from(myDoc.data()?['connections'] ?? []);
+      final myDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
+      _myConnectedUserIds = List<String>.from(myDoc.data()?['connections'] ?? []);
     }
 
     try {
@@ -1320,14 +1048,11 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
     } catch (_) {}
 
     try {
-      final hasPerm =
-          await FlutterContacts.permissions.has(PermissionType.read);
+      final hasPerm = await FlutterContacts.permissions.has(PermissionType.read);
       bool granted = hasPerm;
       if (!granted) {
-        final status =
-            await FlutterContacts.permissions.request(PermissionType.read);
-        granted = status == PermissionStatus.granted ||
-            status == PermissionStatus.limited;
+        final status = await FlutterContacts.permissions.request(PermissionType.read);
+        granted = status == PermissionStatus.granted || status == PermissionStatus.limited;
       }
 
       if (granted) {
@@ -1375,18 +1100,15 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
   }
 
   Future<void> _inviteViaWhatsApp(String phone, String name) async {
-    final message =
-        'Hey $name! Connect with me on Astra: https://astra.croto.in/';
+    final message = 'Hey $name! Connect with me on Astra: https://astra.croto.in/';
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse(
-        'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}');
+    final uri = Uri.parse('https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}');
 
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
-        final fallback = Uri.parse(
-            'https://wa.me/?text=${Uri.encodeComponent(message)}');
+        final fallback = Uri.parse('https://wa.me/?text=${Uri.encodeComponent(message)}');
         await launchUrl(fallback, mode: LaunchMode.externalApplication);
       }
     } catch (_) {
@@ -1406,8 +1128,7 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
       if (_searchQuery.isEmpty) return true;
       final dName = (contact.displayName ?? '').toLowerCase();
       final nameMatches = dName.contains(_searchQuery);
-      final phoneMatches = contact.phones.any((p) =>
-          p.number.replaceAll(RegExp(r'[^0-9]'), '').contains(_searchQuery));
+      final phoneMatches = contact.phones.any((p) => p.number.replaceAll(RegExp(r'[^0-9]'), '').contains(_searchQuery));
       return nameMatches || phoneMatches;
     }).toList();
 
@@ -1483,14 +1204,11 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 hintText: 'Search contacts by name or number...',
-                hintStyle: const TextStyle(
-                    color: AstraTheme.textSecondary, fontSize: 14),
-                prefixIcon: const Icon(Icons.search,
-                    color: AstraTheme.textSecondary, size: 20),
+                hintStyle: const TextStyle(color: AstraTheme.textSecondary, fontSize: 14),
+                prefixIcon: const Icon(Icons.search, color: AstraTheme.textSecondary, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear,
-                            color: Colors.white70, size: 18),
+                        icon: const Icon(Icons.clear, color: Colors.white70, size: 18),
                         onPressed: () => _searchController.clear(),
                       )
                     : null,
@@ -1519,8 +1237,7 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
                     child: CircularProgressIndicator(color: AstraTheme.primary),
                   )
                 : ListView(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     children: [
                       if (onAstraList.isNotEmpty) ...[
                         const Padding(
@@ -1537,30 +1254,23 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
                         ),
                         ...onAstraList.map((item) {
                           final contact = item['contact'] as Contact;
-                          final userData =
-                              item['userData'] as Map<String, dynamic>;
+                          final userData = item['userData'] as Map<String, dynamic>;
                           final uid = userData['uid'] as String;
-                          final isAlreadyConnected =
-                              _myConnectedUserIds.contains(uid);
-                          final displayName =
-                              contact.displayName ?? 'User';
+                          final isAlreadyConnected = _myConnectedUserIds.contains(uid);
+                          final displayName = contact.displayName ?? 'User';
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 8),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.03),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.05)),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
                             ),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor:
-                                    AstraTheme.primary.withValues(alpha: 0.3),
+                                backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
                                 child: Text(
-                                  displayName.isNotEmpty
-                                      ? displayName[0].toUpperCase()
-                                      : 'U',
+                                  displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -1569,48 +1279,35 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
                               ),
                               title: Text(
                                 displayName,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                               ),
                               subtitle: Text(
-                                (userData['phoneNumber'] as String?) ??
-                                    (item['phone'] as String? ?? ''),
-                                style: const TextStyle(
-                                    color: AstraTheme.textSecondary,
-                                    fontSize: 12),
+                                (userData['phoneNumber'] as String?) ?? (item['phone'] as String? ?? ''),
+                                style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
                               ),
                               trailing: isAlreadyConnected
                                   ? Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
                                         color: Colors.white10,
-                                        borderRadius:
-                                            BorderRadius.circular(20),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: const Text(
                                         'Connected',
-                                        style: TextStyle(
-                                            color: AstraTheme.accentCyan,
-                                            fontSize: 12),
+                                        style: TextStyle(color: AstraTheme.accentCyan, fontSize: 12),
                                       ),
                                     )
                                   : ElevatedButton(
-                                      onPressed: () =>
-                                          _connectWithUser(userData),
+                                      onPressed: () => _connectWithUser(userData),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AstraTheme.primary,
                                         foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(20),
                                         ),
                                       ),
-                                      child: const Text('Connect',
-                                          style: TextStyle(fontSize: 13)),
+                                      child: const Text('Connect', style: TextStyle(fontSize: 13)),
                                     ),
                             ),
                           );
@@ -1631,47 +1328,33 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
                           ),
                         ),
                         ...inviteList.map((contact) {
-                          final phone = contact.phones.isNotEmpty
-                              ? contact.phones.first.number
-                              : '';
-                          final displayName =
-                              contact.displayName ?? 'Friend';
+                          final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+                          final displayName = contact.displayName ?? 'Friend';
                           return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 2),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                             leading: CircleAvatar(
                               backgroundColor: Colors.white10,
                               child: Text(
-                                displayName.isNotEmpty
-                                    ? displayName[0].toUpperCase()
-                                    : '?',
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                                 style: const TextStyle(color: Colors.white70),
                               ),
                             ),
                             title: Text(
                               displayName,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 15),
+                              style: const TextStyle(color: Colors.white, fontSize: 15),
                             ),
                             subtitle: Text(
                               phone,
-                              style: const TextStyle(
-                                  color: AstraTheme.textSecondary,
-                                  fontSize: 12),
+                              style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
                             ),
                             trailing: OutlinedButton.icon(
-                              onPressed: () =>
-                                  _inviteViaWhatsApp(phone, displayName),
+                              onPressed: () => _inviteViaWhatsApp(phone, displayName),
                               icon: const Icon(Icons.share_outlined, size: 14),
-                              label: const Text('Invite',
-                                  style: TextStyle(fontSize: 12)),
+                              label: const Text('Invite', style: TextStyle(fontSize: 12)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.greenAccent,
-                                side: BorderSide(
-                                    color: Colors.greenAccent
-                                        .withValues(alpha: 0.6)),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
+                                side: BorderSide(color: Colors.greenAccent.withValues(alpha: 0.6)),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(20),
                                 ),
@@ -1686,8 +1369,7 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
                           child: Center(
                             child: Text(
                               'No contacts found matching search',
-                              style:
-                                  TextStyle(color: AstraTheme.textSecondary),
+                              style: TextStyle(color: AstraTheme.textSecondary),
                             ),
                           ),
                         ),

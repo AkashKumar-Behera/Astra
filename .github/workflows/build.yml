@@ -72,8 +72,24 @@ jobs:
         run: flutter pub get
 
       - name: Build Release APK
+        env:
+          CLOUDFLARE_TURN_KEY_ID: ${{ secrets.CLOUDFLARE_TURN_KEY_ID }}
+          CLOUDFLARE_TURN_API_TOKEN: ${{ secrets.CLOUDFLARE_TURN_API_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
-          flutter build apk --release --split-per-abi
+          DART_DEFINES=""
+          [ -n "$CLOUDFLARE_TURN_KEY_ID" ] && DART_DEFINES="$DART_DEFINES --dart-define=CLOUDFLARE_TURN_KEY_ID=$CLOUDFLARE_TURN_KEY_ID"
+          [ -n "$CLOUDFLARE_TURN_API_TOKEN" ] && DART_DEFINES="$DART_DEFINES --dart-define=CLOUDFLARE_TURN_API_TOKEN=$CLOUDFLARE_TURN_API_TOKEN"
+          [ -n "$R2_ACCOUNT_ID" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_ACCOUNT_ID=$R2_ACCOUNT_ID"
+          [ -n "$R2_ACCESS_KEY_ID" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
+          [ -n "$R2_SECRET_ACCESS_KEY" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY"
+          [ -n "$R2_BUCKET_NAME" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_BUCKET_NAME=$R2_BUCKET_NAME"
+          [ -n "$R2_PUBLIC_URL" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_PUBLIC_URL=$R2_PUBLIC_URL"
+          flutter build apk --release --split-per-abi $DART_DEFINES
 
       - name: Prepare APKs with Tag Name
         run: |
@@ -114,7 +130,24 @@ jobs:
         run: flutter pub get
 
       - name: Build iOS without code signing
-        run: flutter build ios --release --no-codesign
+        env:
+          CLOUDFLARE_TURN_KEY_ID: ${{ secrets.CLOUDFLARE_TURN_KEY_ID }}
+          CLOUDFLARE_TURN_API_TOKEN: ${{ secrets.CLOUDFLARE_TURN_API_TOKEN }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+        run: |
+          DART_DEFINES=""
+          [ -n "$CLOUDFLARE_TURN_KEY_ID" ] && DART_DEFINES="$DART_DEFINES --dart-define=CLOUDFLARE_TURN_KEY_ID=$CLOUDFLARE_TURN_KEY_ID"
+          [ -n "$CLOUDFLARE_TURN_API_TOKEN" ] && DART_DEFINES="$DART_DEFINES --dart-define=CLOUDFLARE_TURN_API_TOKEN=$CLOUDFLARE_TURN_API_TOKEN"
+          [ -n "$R2_ACCOUNT_ID" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_ACCOUNT_ID=$R2_ACCOUNT_ID"
+          [ -n "$R2_ACCESS_KEY_ID" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
+          [ -n "$R2_SECRET_ACCESS_KEY" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY"
+          [ -n "$R2_BUCKET_NAME" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_BUCKET_NAME=$R2_BUCKET_NAME"
+          [ -n "$R2_PUBLIC_URL" ] && DART_DEFINES="$DART_DEFINES --dart-define=R2_PUBLIC_URL=$R2_PUBLIC_URL"
+          flutter build ios --release --no-codesign $DART_DEFINES
 
       - name: Package Payload to IPA
         run: |

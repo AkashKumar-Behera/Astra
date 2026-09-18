@@ -49,8 +49,13 @@ android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
 lib/firebase_options.dart
 lib/core/config/env.dart
+.env
+.env.*
 *.env*
+env.json
+!env.example.json
 *.keystore
 *.jks
 android/key.properties
+
 
