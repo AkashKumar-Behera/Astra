@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import 'package:firebase_database/firebase_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/services/location_rtdb_service.dart';
@@ -14,6 +15,14 @@ import '../../core/services/telemetry_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
 import '../settings/profile_settings_modal.dart';
+
+enum AstraMapStyle {
+  darkMatter,
+  midnightBlue,
+  pureOled,
+  satellite,
+  voyager,
+}
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -35,14 +44,7 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _pulseController;
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
-
-  // Dark Matrix Color Filter to turn standard OSM tiles into Pure Midnight Cosmic Dark Map
-  static const ColorFilter _darkOsmMatrix = ColorFilter.matrix(<double>[
-    -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
-    -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
-    -0.2126 * 0.95, -0.7152 * 0.95, -0.0722 * 0.95, 0, 255 * 1.05,
-    0,              0,              0,              1, 0,
-  ]);
+  AstraMapStyle _currentMapStyle = AstraMapStyle.darkMatter;
 
   @override
   void initState() {
@@ -52,12 +54,35 @@ class _HomeScreenState extends State<HomeScreen>
       duration: const Duration(seconds: 3),
     )..repeat();
 
+    _loadSavedMapStyle();
     _initLocation();
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       TelemetryService.startTelemetrySync(uid);
     }
+  }
+
+  Future<void> _loadSavedMapStyle() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('astra_map_style');
+      if (saved != null) {
+        final match = AstraMapStyle.values.firstWhere(
+          (s) => s.name == saved,
+          orElse: () => AstraMapStyle.darkMatter,
+        );
+        if (mounted) setState(() => _currentMapStyle = match);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _setMapStyle(AstraMapStyle style) async {
+    setState(() => _currentMapStyle = style);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('astra_map_style', style.name);
+    } catch (_) {}
   }
 
   @override
@@ -331,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // 3. MAP RE-CENTER / ZOOM BUTTONS
+              // 3. MAP RE-CENTER / ZOOM / MAP STYLES BUTTONS
               Positioned(
                 right: 16,
                 bottom: MediaQuery.of(context).size.height * 0.38,
@@ -359,13 +384,13 @@ class _HomeScreenState extends State<HomeScreen>
                     FloatingActionButton.small(
                       heroTag: 'layers_btn',
                       backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                      foregroundColor: Colors.white70,
+                      foregroundColor: AstraTheme.accentCyan,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                         side: const BorderSide(color: AstraTheme.borderSubtle),
                       ),
-                      onPressed: _openContactsModal,
-                      child: const Icon(Icons.layers_outlined, size: 20),
+                      onPressed: _openMapStyleModal,
+                      child: const Icon(Icons.layers_rounded, size: 20),
                     ),
                   ],
                 ),
@@ -390,7 +415,257 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // -------------------------------------------------------------
-  // FULLSCREEN DARK MATRIX OPENSTREETMAP (100% Free, No Watermark)
+  // MAP STYLE SWITCHER MODAL
+  // -------------------------------------------------------------
+  void _openMapStyleModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final options = [
+            {
+              'style': AstraMapStyle.darkMatter,
+              'title': 'CartoDB Dark Matter',
+              'subtitle': 'Ultra-clean charcoal dark, sharp typography (Default)',
+              'icon': Icons.dark_mode_rounded,
+              'gradient': [const Color(0xFF1E2026), const Color(0xFF111217)],
+              'accent': AstraTheme.accentCyan,
+            },
+            {
+              'style': AstraMapStyle.midnightBlue,
+              'title': 'Midnight Cosmic Blue',
+              'subtitle': 'Futuristic Astra navy blue & glowing routes',
+              'icon': Icons.nightlight_round,
+              'gradient': [const Color(0xFF0F172A), const Color(0xFF1E1B4B)],
+              'accent': AstraTheme.primaryLight,
+            },
+            {
+              'style': AstraMapStyle.pureOled,
+              'title': 'Pure OLED Black',
+              'subtitle': 'True #000000 black, max contrast & battery saving',
+              'icon': Icons.contrast_rounded,
+              'gradient': [Colors.black, const Color(0xFF18181B)],
+              'accent': Colors.white,
+            },
+            {
+              'style': AstraMapStyle.satellite,
+              'title': 'Satellite World Imagery',
+              'subtitle': 'Photographic high-resolution satellite view',
+              'icon': Icons.satellite_alt_rounded,
+              'gradient': [const Color(0xFF064E3B), const Color(0xFF022C22)],
+              'accent': const Color(0xFF10B981),
+            },
+            {
+              'style': AstraMapStyle.voyager,
+              'title': 'Voyager Modern',
+              'subtitle': 'Vibrant colorful daylight city rendering',
+              'icon': Icons.explore_rounded,
+              'gradient': [const Color(0xFF1E3A8A), const Color(0xFF3B82F6)],
+              'accent': Colors.amberAccent,
+            },
+          ];
+
+          return Container(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            decoration: BoxDecoration(
+              color: AstraTheme.cardSurface.withValues(alpha: 0.98),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border.all(color: AstraTheme.borderSubtle),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.6),
+                  blurRadius: 30,
+                  spreadRadius: 8,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.layers_rounded, color: AstraTheme.accentCyan, size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          'Map Style & Themes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white60, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ...options.map((opt) {
+                  final style = opt['style'] as AstraMapStyle;
+                  final isSelected = _currentMapStyle == style;
+                  final title = opt['title'] as String;
+                  final subtitle = opt['subtitle'] as String;
+                  final icon = opt['icon'] as IconData;
+                  final gradient = opt['gradient'] as List<Color>;
+                  final accent = opt['accent'] as Color;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        _setMapStyle(style);
+                        setModalState(() {});
+                        Navigator.pop(ctx);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isSelected
+                                ? [gradient[0].withValues(alpha: 0.9), gradient[1].withValues(alpha: 0.9)]
+                                : [AstraTheme.cardSurface.withValues(alpha: 0.6), AstraTheme.cardSurface.withValues(alpha: 0.4)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? AstraTheme.accentCyan : AstraTheme.borderSubtle,
+                            width: isSelected ? 1.8 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: gradient[0],
+                                shape: BoxShape.circle,
+                                border: Border.all(color: accent.withValues(alpha: 0.6)),
+                              ),
+                              child: Icon(icon, color: accent, size: 22),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    subtitle,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white70 : AstraTheme.textSecondary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isSelected)
+                              const Icon(Icons.check_circle_rounded, color: AstraTheme.accentCyan, size: 24)
+                            else
+                              const Icon(Icons.radio_button_unchecked, color: Colors.white24, size: 22),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------
+  // DYNAMIC TILE LAYER BY SELECTED MAP STYLE
+  // -------------------------------------------------------------
+  Widget _buildMapTileLayer() {
+    switch (_currentMapStyle) {
+      case AstraMapStyle.darkMatter:
+        return TileLayer(
+          urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+          subdomains: const ['a', 'b', 'c', 'd'],
+          userAgentPackageName: 'com.croto.astra',
+          maxZoom: 19,
+        );
+      case AstraMapStyle.midnightBlue:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
+            -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
+            -0.2126 * 0.95, -0.7152 * 0.95, -0.0722 * 0.95, 0, 255 * 1.05,
+            0,              0,              0,              1, 0,
+          ]),
+          child: TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.croto.astra',
+            maxZoom: 19,
+          ),
+        );
+      case AstraMapStyle.pureOled:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            -0.3, -0.59, -0.11, 0, 245,
+            -0.3, -0.59, -0.11, 0, 245,
+            -0.3, -0.59, -0.11, 0, 245,
+            0,    0,     0,     1, 0,
+          ]),
+          child: TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.croto.astra',
+            maxZoom: 19,
+          ),
+        );
+      case AstraMapStyle.satellite:
+        return TileLayer(
+          urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          userAgentPackageName: 'com.croto.astra',
+          maxZoom: 18,
+        );
+      case AstraMapStyle.voyager:
+        return TileLayer(
+          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+          subdomains: const ['a', 'b', 'c', 'd'],
+          userAgentPackageName: 'com.croto.astra',
+          maxZoom: 19,
+        );
+    }
+  }
+
+  // -------------------------------------------------------------
+  // FULLSCREEN MAP WITH DYNAMIC TILE LAYER (CartoDB, OSM, Satellite)
   // -------------------------------------------------------------
   Widget _buildFullDarkMap({
     required double? myLat,
@@ -587,14 +862,7 @@ class _HomeScreenState extends State<HomeScreen>
         maxZoom: 18.5,
       ),
       children: [
-        // 100% Free Standard OpenStreetMap with ColorFiltered Dark Matrix
-        ColorFiltered(
-          colorFilter: _darkOsmMatrix,
-          child: TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.croto.astra',
-          ),
-        ),
+        _buildMapTileLayer(),
         if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
         MarkerLayer(markers: markers),
       ],
