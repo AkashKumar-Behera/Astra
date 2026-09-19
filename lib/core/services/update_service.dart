@@ -109,7 +109,7 @@ class UpdateService {
         return UpdateInfo(
           hasUpdate: isNewer,
           isBeta: isBetaRelease,
-          latestVersion: rawTag.isNotEmpty ? rawTag : currentVersion,
+          latestVersion: cleanTag.isNotEmpty ? cleanTag : currentVersion,
           currentVersion: currentVersion,
           releaseNotes: releaseNotes,
           apkDownloadUrl: apkUrl ?? htmlUrl,

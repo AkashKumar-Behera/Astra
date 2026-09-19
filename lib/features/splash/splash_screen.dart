@@ -187,7 +187,9 @@ class _SplashScreenState extends State<SplashScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'v${updateInfo.currentVersion}',
+                            updateInfo.currentVersion.startsWith('v')
+                                ? updateInfo.currentVersion
+                                : 'v${updateInfo.currentVersion}',
                             style: const TextStyle(
                               color: Colors.white60,
                               fontSize: 12,
@@ -199,7 +201,9 @@ class _SplashScreenState extends State<SplashScreen>
                             child: Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFFA594F9)),
                           ),
                           Text(
-                            'v${updateInfo.latestVersion}',
+                            updateInfo.latestVersion.startsWith('v')
+                                ? updateInfo.latestVersion
+                                : 'v${updateInfo.latestVersion}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
