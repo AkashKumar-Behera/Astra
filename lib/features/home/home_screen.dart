@@ -711,28 +711,21 @@ class _HomeScreenState extends State<HomeScreen>
   // -------------------------------------------------------------
   // DYNAMIC TILE LAYER BY SELECTED MAP STYLE
   // -------------------------------------------------------------
+  static const String _mapTilerKey = 'IG8L4cXU4hvolM8F63k6';
+
   Widget _buildMapTileLayer() {
     switch (_currentMapStyle) {
       case AstraMapStyle.darkMatter:
         return TileLayer(
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
+          urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
           maxZoom: 19,
         );
       case AstraMapStyle.midnightBlue:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix(<double>[
-            -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
-            -0.2126 * 0.85, -0.7152 * 0.85, -0.0722 * 0.85, 0, 255 * 0.9,
-            -0.2126 * 0.95, -0.7152 * 0.95, -0.0722 * 0.95, 0, 255 * 1.05,
-            0,              0,              0,              1, 0,
-          ]),
-          child: TileLayer(
-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-            userAgentPackageName: 'com.croto.astra',
-            maxZoom: 19,
-          ),
+        return TileLayer(
+          urlTemplate: 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=$_mapTilerKey',
+          userAgentPackageName: 'com.croto.astra',
+          maxZoom: 19,
         );
       case AstraMapStyle.pureOled:
         return ColorFiltered(
@@ -750,14 +743,13 @@ class _HomeScreenState extends State<HomeScreen>
         );
       case AstraMapStyle.satellite:
         return TileLayer(
-          urlTemplate: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          urlTemplate: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
-          maxZoom: 18,
+          maxZoom: 19,
         );
       case AstraMapStyle.voyager:
         return TileLayer(
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
+          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
           maxZoom: 19,
         );
