@@ -62,5 +62,9 @@ env.json
 android/key.properties
 node_modules/
 functions/node_modules/
+*.key
+*.key.pub
+*.pub
+ssh-key-*
 
 
