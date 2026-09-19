@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedPartnerIndex = 0;
   AstraMapStyle _currentMapStyle = AstraMapStyle.nocturne;
   bool _isRefreshingLocation = false;
+  double _mapRotation = 0.0;
 
   @override
   void initState() {
@@ -437,12 +439,22 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // 3. MAP RE-CENTER / REFRESH / ZOOM / MAP STYLES BUTTONS (Glassmorphic)
+              // 3. MAP CONTROLS: COMPASS / RE-CENTER / LAYERS / REFRESH (Glassmorphic)
               Positioned(
                 right: 16,
-                bottom: MediaQuery.of(context).size.height * 0.38,
+                bottom: MediaQuery.of(context).size.height * 0.36,
                 child: Column(
                   children: [
+                    // Google Maps Style Compass
+                    _GoogleMapsCompass(
+                      rotation: _mapRotation,
+                      onTap: () {
+                        _mapController.rotate(0.0);
+                        setState(() => _mapRotation = 0.0);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
                     // Recenter / Navigation Button (Matching Screen4.png)
                     _GlassContainer(
                       borderRadius: 24,
@@ -747,22 +759,28 @@ class _HomeScreenState extends State<HomeScreen>
             0.00, 0.00, 0.00, 1.0,   0.0,
           ]),
           child: TileLayer(
-            urlTemplate: 'https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=$_mapTilerKey',
+            urlTemplate: 'https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}{r}.jpg?key=$_mapTilerKey',
             userAgentPackageName: 'com.croto.astra',
-            maxZoom: 19,
+            retinaMode: true,
+            maxZoom: 22,
+            maxNativeZoom: 20,
           ),
         );
       case AstraMapStyle.darkMatter:
         return TileLayer(
-          urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=$_mapTilerKey',
+          urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}{r}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
-          maxZoom: 19,
+          retinaMode: true,
+          maxZoom: 22,
+          maxNativeZoom: 20,
         );
       case AstraMapStyle.midnightBlue:
         return TileLayer(
-          urlTemplate: 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=$_mapTilerKey',
+          urlTemplate: 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}{r}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
-          maxZoom: 19,
+          retinaMode: true,
+          maxZoom: 22,
+          maxNativeZoom: 20,
         );
       case AstraMapStyle.pureOled:
         return ColorFiltered(
@@ -775,20 +793,26 @@ class _HomeScreenState extends State<HomeScreen>
           child: TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.croto.astra',
-            maxZoom: 19,
+            retinaMode: true,
+            maxZoom: 22,
+            maxNativeZoom: 19,
           ),
         );
       case AstraMapStyle.satellite:
         return TileLayer(
-          urlTemplate: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=$_mapTilerKey',
+          urlTemplate: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}{r}.jpg?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
-          maxZoom: 19,
+          retinaMode: true,
+          maxZoom: 22,
+          maxNativeZoom: 20,
         );
       case AstraMapStyle.voyager:
         return TileLayer(
-          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$_mapTilerKey',
+          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}{r}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
-          maxZoom: 19,
+          retinaMode: true,
+          maxZoom: 22,
+          maxNativeZoom: 20,
         );
     }
   }
@@ -1082,9 +1106,19 @@ class _HomeScreenState extends State<HomeScreen>
       mapController: _mapController,
       options: MapOptions(
         initialCenter: initialCenter,
-        initialZoom: hasMyLoc ? 13.5 : 5.0,
+        initialZoom: hasMyLoc ? 14.0 : 5.0,
         minZoom: 3.0,
-        maxZoom: 18.5,
+        maxZoom: 20.5,
+        interactionOptions: const InteractionOptions(
+          flags: InteractiveFlag.all,
+        ),
+        onPositionChanged: (pos, hasGesture) {
+          if ((_mapRotation - pos.rotation).abs() > 0.5) {
+            setState(() {
+              _mapRotation = pos.rotation;
+            });
+          }
+        },
       ),
       children: [
         _buildMapTileLayer(),
@@ -2143,4 +2177,121 @@ class _GlassContainer extends StatelessWidget {
       ),
     );
   }
+}
+
+// -------------------------------------------------------------
+// GOOGLE MAPS STYLE COMPASS WIDGET
+// -------------------------------------------------------------
+class _GoogleMapsCompass extends StatelessWidget {
+  final double rotation;
+  final VoidCallback onTap;
+
+  const _GoogleMapsCompass({
+    required this.rotation,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rad = -rotation * (math.pi / 180.0);
+    return _GlassContainer(
+      borderRadius: 24,
+      padding: EdgeInsets.zero,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: onTap,
+            child: Center(
+              child: Transform.rotate(
+                angle: rad,
+                child: CustomPaint(
+                  size: const Size(20, 26),
+                  painter: _CompassNeedlePainter(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompassNeedlePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // Beveled colors for iconic 3D Google Maps look
+    final northPaintRight = Paint()..color = const Color(0xFFFF3B30); // Vibrant Red
+    final northPaintLeft = Paint()..color = const Color(0xFFC62828); // Shaded Deep Red
+    final southPaintRight = Paint()..color = Colors.white.withValues(alpha: 0.95);
+    final southPaintLeft = Paint()..color = const Color(0xFFB0BEC5); // Shaded Slate
+
+    // 1. North Needle (Top Triangle)
+    final northPathLeft = Path()
+      ..moveTo(cx, 0)
+      ..lineTo(cx - size.width / 2, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(northPathLeft, northPaintLeft);
+
+    final northPathRight = Path()
+      ..moveTo(cx, 0)
+      ..lineTo(cx + size.width / 2, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(northPathRight, northPaintRight);
+
+    // 2. South Needle (Bottom Triangle)
+    final southPathLeft = Path()
+      ..moveTo(cx, size.height)
+      ..lineTo(cx - size.width / 2, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(southPathLeft, southPaintLeft);
+
+    final southPathRight = Path()
+      ..moveTo(cx, size.height)
+      ..lineTo(cx + size.width / 2, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(southPathRight, southPaintRight);
+
+    // 3. Center Pivot Pin
+    final pivotPaint = Paint()..color = const Color(0xFF14132B);
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3;
+
+    canvas.drawCircle(Offset(cx, cy), 3.2, pivotPaint);
+    canvas.drawCircle(Offset(cx, cy), 3.2, borderPaint);
+
+    // 4. White 'N' character on North needle
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'N',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 7.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainter.paint(
+      canvas,
+      Offset(cx - textPainter.width / 2, 3),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
