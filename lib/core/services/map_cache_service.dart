@@ -187,12 +187,13 @@ class MapCacheService {
   }
 
   static String _formatTileUrl(String template, int z, int x, int y) {
+    final sub = template.contains('google.com') ? '1' : 'a';
     return template
         .replaceAll('{z}', z.toString())
         .replaceAll('{x}', x.toString())
         .replaceAll('{y}', y.toString())
         .replaceAll('{r}', '@2x')
-        .replaceAll('{s}', 'a');
+        .replaceAll('{s}', sub);
   }
 
   static _TileBoundingBox _getBoundingBoxTiles({
