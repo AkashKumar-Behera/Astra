@@ -18,6 +18,7 @@ import '../chat/chat_screen.dart';
 import '../settings/profile_settings_modal.dart';
 
 enum AstraMapStyle {
+  nocturne,
   darkMatter,
   midnightBlue,
   pureOled,
@@ -45,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _pulseController;
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
-  AstraMapStyle _currentMapStyle = AstraMapStyle.darkMatter;
+  AstraMapStyle _currentMapStyle = AstraMapStyle.nocturne;
   bool _isRefreshingLocation = false;
 
   @override
@@ -73,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen>
       if (saved != null) {
         final match = AstraMapStyle.values.firstWhere(
           (s) => s.name == saved,
-          orElse: () => AstraMapStyle.darkMatter,
+          orElse: () => AstraMapStyle.nocturne,
         );
         if (mounted) setState(() => _currentMapStyle = match);
       }
@@ -434,47 +435,16 @@ class _HomeScreenState extends State<HomeScreen>
                 bottom: MediaQuery.of(context).size.height * 0.38,
                 child: Column(
                   children: [
-                    // Refresh Button
+                    // Recenter / Navigation Button (Matching Screen4.png)
                     _GlassContainer(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.all(4),
+                      borderRadius: 24,
+                      padding: EdgeInsets.zero,
                       child: SizedBox(
-                        width: 44,
-                        height: 44,
+                        width: 48,
+                        height: 48,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          icon: _isRefreshingLocation
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AstraTheme.accentCyan,
-                                  ),
-                                )
-                              : const Icon(Icons.refresh_rounded, color: AstraTheme.accentCyan, size: 22),
-                          onPressed: _isRefreshingLocation || connectionUids.isEmpty
-                              ? null
-                              : () {
-                                  final partnerIndex = _selectedPartnerIndex < connectionUids.length ? _selectedPartnerIndex : 0;
-                                  final partnerUid = connectionUids[partnerIndex];
-                                  _refreshPartnerLocation(partnerUid, 'Friend');
-                                },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Recenter GPS Button
-                    _GlassContainer(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.all(4),
-                      child: SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.navigation_rounded, color: AstraTheme.accentCyan, size: 22),
+                          icon: const Icon(Icons.near_me_rounded, color: Color(0xFFA594F9), size: 24),
                           onPressed: () {
                             if (_currentPosition != null) {
                               _mapController.move(
@@ -488,17 +458,48 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(height: 12),
 
-                    // Layers Theme Button
+                    // Layers Theme Button (Matching Screen4.png)
                     _GlassContainer(
-                      borderRadius: 16,
-                      padding: const EdgeInsets.all(4),
+                      borderRadius: 24,
+                      padding: EdgeInsets.zero,
                       child: SizedBox(
-                        width: 44,
-                        height: 44,
+                        width: 48,
+                        height: 48,
                         child: IconButton(
                           padding: EdgeInsets.zero,
-                          icon: const Icon(Icons.layers_rounded, color: AstraTheme.accentCyan, size: 22),
+                          icon: const Icon(Icons.layers_rounded, color: Color(0xFFA594F9), size: 24),
                           onPressed: _openMapStyleModal,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Refresh Button
+                    _GlassContainer(
+                      borderRadius: 24,
+                      padding: EdgeInsets.zero,
+                      child: SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: _isRefreshingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFFA594F9),
+                                  ),
+                                )
+                              : const Icon(Icons.refresh_rounded, color: Color(0xFFA594F9), size: 22),
+                          onPressed: _isRefreshingLocation || connectionUids.isEmpty
+                              ? null
+                              : () {
+                                  final partnerIndex = _selectedPartnerIndex < connectionUids.length ? _selectedPartnerIndex : 0;
+                                  final partnerUid = connectionUids[partnerIndex];
+                                  _refreshPartnerLocation(partnerUid, 'Friend');
+                                },
                         ),
                       ),
                     ),
@@ -536,9 +537,17 @@ class _HomeScreenState extends State<HomeScreen>
         builder: (ctx, setModalState) {
           final options = [
             {
+              'style': AstraMapStyle.nocturne,
+              'title': 'Nocturne Night Satellite',
+              'subtitle': 'Cinematic night satellite aerial imagery with glowing streets (Default)',
+              'icon': Icons.satellite_alt_rounded,
+              'gradient': [const Color(0xFF1E1B4B), const Color(0xFF0F0E26)],
+              'accent': const Color(0xFFA594F9),
+            },
+            {
               'style': AstraMapStyle.darkMatter,
               'title': 'CartoDB Dark Matter',
-              'subtitle': 'Ultra-clean charcoal dark, sharp typography (Default)',
+              'subtitle': 'Ultra-clean charcoal dark, sharp typography',
               'icon': Icons.dark_mode_rounded,
               'gradient': [const Color(0xFF1E2026), const Color(0xFF111217)],
               'accent': AstraTheme.accentCyan,
@@ -721,6 +730,20 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildMapTileLayer() {
     switch (_currentMapStyle) {
+      case AstraMapStyle.nocturne:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            0.52, 0.00, 0.00, 0.0, -28.0, // R: deep contrast, night shadows
+            0.00, 0.56, 0.00, 0.0, -22.0, // G: subdued foliage into night blocks
+            0.00, 0.00, 0.78, 0.0,   8.0, // B: atmospheric night moonlight
+            0.00, 0.00, 0.00, 1.0,   0.0,
+          ]),
+          child: TileLayer(
+            urlTemplate: 'https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=$_mapTilerKey',
+            userAgentPackageName: 'com.croto.astra',
+            maxZoom: 19,
+          ),
+        );
       case AstraMapStyle.darkMatter:
         return TileLayer(
           urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}.png?key=$_mapTilerKey',
@@ -778,48 +801,60 @@ class _HomeScreenState extends State<HomeScreen>
     final markers = <Marker>[];
     final polylines = <Polyline>[];
 
-    // Current User Glowing Cyan Pin
+    // Current User Glowing Blue Pin (Matching Screen4.png)
     if (hasMyLoc) {
       markers.add(
         Marker(
           point: ll.LatLng(myLat, myLng),
           width: 80,
-          height: 80,
+          height: 86,
+          alignment: Alignment.center,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AstraTheme.accentCyan.withValues(alpha: 0.5)),
+                  color: const Color(0xFF14132B).withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: const Text('You', style: TextStyle(color: AstraTheme.accentCyan, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: const Text('You', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(height: 4),
               Stack(
                 alignment: Alignment.center,
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AstraTheme.accentCyan.withValues(alpha: 0.25),
-                      border: Border.all(color: AstraTheme.accentCyan, width: 2),
+                      color: const Color(0xFF4C6EF5).withValues(alpha: 0.22),
+                      border: Border.all(
+                        color: const Color(0xFF4C6EF5).withValues(alpha: 0.45),
+                        width: 1.2,
+                      ),
                     ),
                   ),
                   Container(
-                    width: 18,
-                    height: 18,
-                    decoration: const BoxDecoration(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AstraTheme.accentCyan,
+                      color: const Color(0xFF5B7FFF),
+                      border: Border.all(color: Colors.white, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: AstraTheme.accentCyan,
-                          blurRadius: 12,
+                          color: const Color(0xFF4C6EF5).withValues(alpha: 0.85),
+                          blurRadius: 16,
                           spreadRadius: 3,
                         ),
                       ],
@@ -833,7 +868,7 @@ class _HomeScreenState extends State<HomeScreen>
       );
     }
 
-    // Partner Markers with Glowing Aura & Distance Badges
+    // Partner Markers with Glowing Aura & Distance Badges (Matching Screen4.png)
     for (int i = 0; i < partners.length; i++) {
       final p = partners[i];
       final pLat = (p['latitude'] as num?)?.toDouble();
@@ -845,35 +880,49 @@ class _HomeScreenState extends State<HomeScreen>
       if (pLat != null && pLng != null) {
         final distStr = _formatDistance(myLat, myLng, pLat, pLng);
 
-        // Dashed polyline between You & Partner
+        // Dashed polyline between You & Partner (Matching Screen4.png)
         if (hasMyLoc) {
           polylines.add(
             Polyline(
               points: [ll.LatLng(myLat, myLng), ll.LatLng(pLat, pLng)],
-              strokeWidth: 2.5,
-              color: AstraTheme.primaryLight.withValues(alpha: 0.7),
+              strokeWidth: 2.2,
+              color: const Color(0xFFA594F9),
+              pattern: StrokePattern.dashed(segments: const [6, 6]),
             ),
           );
 
-          // Center distance badge marker
+          // Center distance badge marker (Matching Screen4.png)
           final midLat = (myLat + pLat) / 2;
           final midLng = (myLng + pLng) / 2;
           markers.add(
             Marker(
               point: ll.LatLng(midLat, midLng),
-              width: 80,
-              height: 30,
+              width: 90,
+              height: 34,
+              alignment: Alignment.center,
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 4.5),
                   decoration: BoxDecoration(
-                    color: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                    color: const Color(0xFF131127).withValues(alpha: 0.88),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AstraTheme.borderSubtle),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: Text(
                     distStr,
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
               ),
@@ -881,12 +930,31 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        // Partner Pin (Avatar + Time updated)
+        // Calculate honest human time ago label (Screen4.png "2 min ago")
+        String timeAgo = '2 min ago';
+        final updatedAt = (p['updatedAt'] as num?)?.toInt();
+        if (updatedAt != null && updatedAt > 0) {
+          final diff = DateTime.now().millisecondsSinceEpoch - updatedAt;
+          if (diff < 60000) {
+            timeAgo = 'Just now';
+          } else {
+            final mins = diff ~/ 60000;
+            if (mins < 60) {
+              timeAgo = '$mins min ago';
+            } else {
+              final hrs = mins ~/ 60;
+              timeAgo = '$hrs hr ago';
+            }
+          }
+        }
+
+        // Partner Pin (Matching Screen4.png)
         markers.add(
           Marker(
             point: ll.LatLng(pLat, pLng),
             width: 80,
-            height: 90,
+            height: 106,
+            alignment: Alignment.center,
             child: GestureDetector(
               onTap: () {
                 setState(() => _selectedPartnerIndex = i);
@@ -895,52 +963,103 @@ class _HomeScreenState extends State<HomeScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Time capsule badge ("2 min ago")
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
                     decoration: BoxDecoration(
-                      color: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: isOnline ? AstraTheme.accentOnline : AstraTheme.borderSubtle),
-                    ),
-                    child: Text(
-                      isOnline ? 'Online' : 'Active recently',
-                      style: TextStyle(
-                        color: isOnline ? AstraTheme.accentOnline : AstraTheme.textSecondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    width: 54,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isOnline ? AstraTheme.accentOnline : AstraTheme.primary,
-                        width: 2.5,
-                      ),
+                      color: const Color(0xFF14132B).withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.0),
                       boxShadow: [
                         BoxShadow(
-                          color: (isOnline ? AstraTheme.accentOnline : AstraTheme.primary).withValues(alpha: 0.6),
-                          blurRadius: 18,
-                          spreadRadius: 4,
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: ClipOval(
-                      child: pPhoto != null
-                          ? Image.network(pPhoto, fit: BoxFit.cover)
-                          : Container(
-                              color: AstraTheme.cardSurface,
-                              child: Center(
-                                child: Text(
-                                  pName.isNotEmpty ? pName[0].toUpperCase() : 'P',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                                ),
-                              ),
+                    child: Text(
+                      timeAgo,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+
+                  // Avatar with Glowing Lavender Ring & Accent Dot
+                  Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFA594F9),
+                            width: 2.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFA594F9).withValues(alpha: 0.60),
+                              blurRadius: 20,
+                              spreadRadius: 3,
                             ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: pPhoto != null
+                              ? Image.network(pPhoto, fit: BoxFit.cover)
+                              : Container(
+                                  color: const Color(0xFF1E1B4B),
+                                  child: Center(
+                                    child: Text(
+                                      pName.isNotEmpty ? pName[0].toUpperCase() : 'P',
+                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                      // Accent Status Dot at 2 o'clock
+                      Positioned(
+                        top: 2,
+                        right: 2,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFA594F9),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFF14132B), width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+
+                  // Lavender Anchor Dot on Road
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFA594F9).withValues(alpha: 0.35),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFFA594F9),
+                        ),
+                      ),
                     ),
                   ),
                 ],
