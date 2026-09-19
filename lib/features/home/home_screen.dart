@@ -1102,141 +1102,145 @@ class _HomeScreenState extends State<HomeScreen>
     required List<Map<String, dynamic>> partners,
   }) {
     if (partners.isEmpty) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.28,
-        minChildSize: 0.22,
-        maxChildSize: 0.85,
-        builder: (context, scrollController) {
-          return ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0C0B22).withValues(alpha: 0.78),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      blurRadius: 36,
-                      offset: const Offset(0, -10),
-                    ),
-                  ],
-                ),
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4.5,
-                        decoration: BoxDecoration(
-                          color: Colors.white38,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0C0B22).withValues(alpha: 0.82),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        blurRadius: 36,
+                        offset: const Offset(0, 8),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF1E1B4B).withValues(alpha: 0.55),
-                          border: Border.all(
-                            color: const Color(0xFFA594F9).withValues(alpha: 0.35),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFA594F9).withValues(alpha: 0.25),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'assets/images/transparent_logo.png',
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
                             width: 44,
                             height: 44,
-                            fit: BoxFit.contain,
-                            errorBuilder: (ctx, err, stack) =>
-                                const Icon(Icons.people_outline, color: AstraTheme.primaryLight, size: 36),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: const Color(0xFF1E1B4B).withValues(alpha: 0.65),
+                              border: Border.all(
+                                color: const Color(0xFFA594F9).withValues(alpha: 0.4),
+                                width: 1.2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFA594F9).withValues(alpha: 0.3),
+                                  blurRadius: 14,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Image.asset(
+                                'assets/images/transparent_logo.png',
+                                width: 26,
+                                height: 26,
+                                fit: BoxFit.contain,
+                                errorBuilder: (ctx, err, stack) =>
+                                    const Icon(Icons.people_outline, color: AstraTheme.primaryLight, size: 22),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'No Partners Connected',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Tap below to discover and connect with friends from your contacts.',
-                      style: TextStyle(color: AstraTheme.textSecondary, fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      width: double.infinity,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        gradient: const LinearGradient(
-                          colors: [AstraTheme.primary, AstraTheme.secondary],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.25),
-                          width: 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AstraTheme.primary.withValues(alpha: 0.45),
-                            blurRadius: 20,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(18),
-                          onTap: _openContactsModal,
-                          child: const Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
-                                SizedBox(width: 8),
                                 Text(
-                                  'Add Friend from Contacts',
+                                  'No Partners Connected',
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Connect with friends to see live locations.',
+                                  style: TextStyle(
+                                    color: AstraTheme.textSecondary,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ],
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: const LinearGradient(
+                            colors: [AstraTheme.primary, AstraTheme.secondary],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AstraTheme.primary.withValues(alpha: 0.45),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: _openContactsModal,
+                            child: const Center(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_add_rounded, color: Colors.white, size: 18),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Add Friend from Contacts',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ),
       );
     }
 
@@ -1248,9 +1252,11 @@ class _HomeScreenState extends State<HomeScreen>
     final pPhone = (activePartner['phoneNumber'] as String?) ?? '';
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.36,
-      minChildSize: 0.30,
-      maxChildSize: 0.88,
+      initialChildSize: 0.16,
+      minChildSize: 0.12,
+      maxChildSize: 0.85,
+      snap: true,
+      snapSizes: const [0.16, 0.50, 0.85],
       builder: (context, scrollController) {
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
