@@ -178,6 +178,16 @@ class _HomeScreenState extends State<HomeScreen>
 
       if (permission == LocationPermission.deniedForever) return;
 
+      // 1. Instant cached location (0ms) so map centers immediately on launch
+      final lastKnown = await Geolocator.getLastKnownPosition();
+      if (lastKnown != null && mounted) {
+        setState(() => _currentPosition = lastKnown);
+        try {
+          _mapController.move(ll.LatLng(lastKnown.latitude, lastKnown.longitude), 15.0);
+        } catch (_) {}
+      }
+
+      // 2. Fresh high-precision GPS position
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
@@ -186,6 +196,9 @@ class _HomeScreenState extends State<HomeScreen>
         setState(() {
           _currentPosition = position;
         });
+        try {
+          _mapController.move(ll.LatLng(position.latitude, position.longitude), 15.0);
+        } catch (_) {}
       }
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
