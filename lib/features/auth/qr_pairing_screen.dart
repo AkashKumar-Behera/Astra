@@ -71,8 +71,8 @@ class _QrPairingScreenState extends State<QrPairingScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AstraTheme.background.withOpacity(0.4),
-                    AstraTheme.background.withOpacity(0.85),
+                    AstraTheme.background.withValues(alpha: 0.4),
+                    AstraTheme.background.withValues(alpha: 0.85),
                     AstraTheme.background,
                   ],
                 ),
@@ -103,7 +103,7 @@ class _QrPairingScreenState extends State<QrPairingScreen> {
                             height: 32,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: AstraTheme.primary.withOpacity(0.2),
+                              color: AstraTheme.primary.withValues(alpha: 0.2),
                             ),
                             child: ClipOval(
                               child: Image.asset(
@@ -212,12 +212,12 @@ class _QrPairingScreenState extends State<QrPairingScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AstraTheme.cardSurface.withOpacity(0.85),
+                      color: AstraTheme.cardSurface.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AstraTheme.borderSubtle),
                       boxShadow: [
                         BoxShadow(
-                          color: AstraTheme.primary.withOpacity(0.15),
+                          color: AstraTheme.primary.withValues(alpha: 0.15),
                           blurRadius: 28,
                           spreadRadius: 2,
                         ),
@@ -368,7 +368,7 @@ class _QrPairingScreenState extends State<QrPairingScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AstraTheme.cardSurface.withOpacity(0.85),
+                      color: AstraTheme.cardSurface.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: AstraTheme.borderSubtle),
                     ),
@@ -435,7 +435,7 @@ class _QrPairingScreenState extends State<QrPairingScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AstraTheme.primary.withOpacity(0.35),
+                          color: AstraTheme.primary.withValues(alpha: 0.35),
                           blurRadius: 18,
                           offset: const Offset(0, 4),
                         ),

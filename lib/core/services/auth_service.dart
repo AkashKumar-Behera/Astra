@@ -1,164 +1,101 @@
+import 'dart:async';
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../network/api_client.dart';
+import '../repositories/auth_repository.dart';
+import '../repositories/friend_repository.dart';
+import 'r2_storage_service.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final AstraApiClient _apiClient = AstraApiClient(
+    tokenProvider: () async => _auth.currentUser?.getIdToken(),
+  );
+  static final AuthRepository _authRepo = AuthRepository(auth: _auth, apiClient: _apiClient);
+  static final FriendRepository _friendRepo = FriendRepository(apiClient: _apiClient);
 
   static User? get currentUser => _auth.currentUser;
 
-  /// Check if user has already completed registration and exists in Firestore
+  /// Check if user has already completed registration on VPS
   static Future<Map<String, dynamic>?> getUserProfile(String uid) async {
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
-      if (doc.exists && doc.data() != null) {
-        return doc.data();
+      final user = await _apiClient.getCurrentUser();
+      if (user.isNotEmpty) {
+        return user;
       }
-    } catch (e) {
-      // In case of error or new user
-    }
+    } catch (_) {}
     return null;
   }
 
-  /// Uploads or updates profile picture under profile_pictures/{uid}.jpg
-  /// Always uses the user's UID to prevent storage clutter and duplicates.
+  /// Uploads or updates profile picture via Cloudflare R2 or direct storage
   static Future<String?> uploadProfilePicture({
     required String uid,
     required File file,
   }) async {
     try {
-      final ref = _storage.ref().child('profile_pictures').child('$uid.jpg');
-      final metadata = SettableMetadata(contentType: 'image/jpeg');
-      final uploadTask = await ref.putFile(file, metadata);
-      return await uploadTask.ref.getDownloadURL();
-    } catch (e) {
+      if (R2StorageService.isConfigured) {
+        return await R2StorageService.uploadFile(
+          file: file,
+          remotePath: 'profile_pictures/$uid.jpg',
+          contentType: 'image/jpeg',
+        );
+      }
+      return null;
+    } catch (_) {
       return null;
     }
   }
 
-  /// Saves or updates the user profile document in Firestore
+  /// Saves or updates the user profile on the VPS backend
   static Future<void> saveUserProfile({
     required String uid,
     required String name,
     required String phoneNumber,
     String? photoUrl,
   }) async {
-    final userRef = _firestore.collection('users').doc(uid);
-    final snapshot = await userRef.get();
-
-    final Map<String, dynamic> data = {
-      'uid': uid,
-      'name': name,
-      'phoneNumber': phoneNumber,
-      ...?photoUrl != null ? {'photoUrl': photoUrl} : null,
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-
-    if (!snapshot.exists) {
-      data['createdAt'] = FieldValue.serverTimestamp();
-      data['pairedWith'] = null;
-      data['connections'] = [];
-      await userRef.set(data);
-    } else {
-      await userRef.update(data);
-    }
+    await _authRepo.syncUser(
+      phoneNumber: phoneNumber,
+      displayName: name,
+      avatarUrl: photoUrl,
+    );
   }
 
-  /// Updates current user's live coordinates in Firestore
+  /// Updates current user's live coordinates on the VPS
   static Future<void> updateUserLocation({
     required String uid,
     required double latitude,
     required double longitude,
   }) async {
     try {
-      await _firestore.collection('users').doc(uid).update({
-        'latitude': latitude,
-        'longitude': longitude,
-        'lastLocationUpdate': FieldValue.serverTimestamp(),
-      });
+      await _apiClient.updateLocation(
+        latitude: latitude,
+        longitude: longitude,
+      );
     } catch (_) {}
   }
 
-  /// Search user by phone number (clean exact match, with or without +91)
-  static Future<Map<String, dynamic>?> searchUserByPhone(String phone) async {
-    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (cleanPhone.isEmpty) return null;
-
-    try {
-      // 1. Direct query with exact entered phone
-      var query = await _firestore
-          .collection('users')
-          .where('phoneNumber', isEqualTo: cleanPhone)
-          .limit(1)
-          .get();
-
-      if (query.docs.isNotEmpty) {
-        return query.docs.first.data();
-      }
-
-      // 2. Fallback with +91 if user only entered 10 digits
-      if (!cleanPhone.startsWith('+')) {
-        final withCountry = '+91$cleanPhone';
-        query = await _firestore
-            .collection('users')
-            .where('phoneNumber', isEqualTo: withCountry)
-            .limit(1)
-            .get();
-
-        if (query.docs.isNotEmpty) {
-          return query.docs.first.data();
-        }
-      } else if (cleanPhone.startsWith('+91') && cleanPhone.length == 13) {
-        // Fallback without +91
-        final raw10 = cleanPhone.substring(3);
-        query = await _firestore
-            .collection('users')
-            .where('phoneNumber', isEqualTo: raw10)
-            .limit(1)
-            .get();
-
-        if (query.docs.isNotEmpty) {
-          return query.docs.first.data();
-        }
-      }
-    } catch (_) {}
-
-    return null;
-  }
-
-  /// Adds a mutual connection between current user and target user
+  /// Adds a mutual connection / sends friend request
   static Future<void> addConnection({
     required String currentUid,
     required Map<String, dynamic> targetUser,
   }) async {
-    final currentDoc = _firestore.collection('users').doc(currentUid);
-    final targetUid = targetUser['uid'] as String?;
+    final targetUid = (targetUser['id'] ?? targetUser['uid']) as String?;
     if (targetUid == null || targetUid == currentUid) return;
 
-    // Add to current user's connections array
-    await currentDoc.update({
-      'connections': FieldValue.arrayUnion([targetUid]),
-      'pairedWith': targetUid,
-    });
-
-    // Add to target user's connections array
-    await _firestore.collection('users').doc(targetUid).update({
-      'connections': FieldValue.arrayUnion([currentUid]),
-      'pairedWith': currentUid,
-    });
+    try {
+      await _friendRepo.sendFriendRequest(targetUid);
+    } catch (_) {}
   }
 
-  /// Stream user document with details
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> streamUser(String uid) {
-    return _firestore.collection('users').doc(uid).snapshots();
-  }
-
-  /// Stream partner document with live updates
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> streamPartner(String partnerUid) {
-    return _firestore.collection('users').doc(partnerUid).snapshots();
+  /// Stream current user info periodically from VPS
+  static Stream<Map<String, dynamic>> streamUser(String uid) async* {
+    while (true) {
+      try {
+        final profile = await _apiClient.getCurrentUser();
+        yield profile;
+      } catch (_) {}
+      await Future.delayed(const Duration(seconds: 15));
+    }
   }
 
   /// Removes connection between current user and target user
@@ -167,40 +104,30 @@ class AuthService {
     required String targetUid,
   }) async {
     try {
-      await _firestore.collection('users').doc(currentUid).update({
-        'connections': FieldValue.arrayRemove([targetUid]),
-        'pairedWith': null,
-      });
-      await _firestore.collection('users').doc(targetUid).update({
-        'connections': FieldValue.arrayRemove([currentUid]),
-        'pairedWith': null,
-      });
+      await _friendRepo.removeFriend(targetUid);
     } catch (_) {}
   }
 
-  /// Fetch all users to match against local phone contacts
-  static Future<List<Map<String, dynamic>>> fetchAllRegisteredUsers() async {
+  /// Fetch all friends
+  static Future<List<Map<String, dynamic>>> fetchFriends() async {
     try {
-      final snap = await _firestore.collection('users').limit(300).get();
-      return snap.docs.map((doc) => doc.data()).toList();
+      return await _friendRepo.listFriends();
     } catch (_) {
       return [];
     }
   }
 
-  /// Sign out and clean up device token
-  static Future<void> signOut() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid != null) {
-      try {
-        await _firestore.collection('users').doc(uid).collection('devices').get().then((snap) {
-          for (final doc in snap.docs) {
-            doc.reference.delete();
-          }
-        });
-      } catch (_) {}
+  /// Fetch all registered users / friends
+  static Future<List<Map<String, dynamic>>> fetchAllRegisteredUsers() async {
+    try {
+      return await _friendRepo.listFriends();
+    } catch (_) {
+      return [];
     }
-    await _auth.signOut();
+  }
+
+  /// Sign out and clean up
+  static Future<void> signOut() async {
+    await _authRepo.signOut();
   }
 }
-

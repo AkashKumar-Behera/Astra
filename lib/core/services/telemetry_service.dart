@@ -1,28 +1,39 @@
 import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:firebase_database/firebase_database.dart';
+
+class TelemetryData {
+  final int battery;
+  final String network;
+  final bool isOnline;
+  final int? lastActive;
+
+  const TelemetryData({
+    required this.battery,
+    required this.network,
+    required this.isOnline,
+    this.lastActive,
+  });
+}
 
 class TelemetryService {
   static final Battery _battery = Battery();
   static final Connectivity _connectivity = Connectivity();
-  static final FirebaseDatabase _rtdb = FirebaseDatabase.instance;
   static StreamSubscription? _batterySub;
   static StreamSubscription? _connectivitySub;
+  static final Map<String, StreamController<TelemetryData>> _partnerTelemetryStreams = {};
 
-  /// Starts listening to device battery and network state and syncs to RTDB
+  /// Starts listening to device battery and network state
   static void startTelemetrySync(String uid) {
     _batterySub?.cancel();
     _connectivitySub?.cancel();
 
     _updateTelemetry(uid);
 
-    // Battery state changes
     _batterySub = _battery.onBatteryStateChanged.listen((_) {
       _updateTelemetry(uid);
     });
 
-    // Connectivity changes
     _connectivitySub = _connectivity.onConnectivityChanged.listen((_) {
       _updateTelemetry(uid);
     });
@@ -45,21 +56,33 @@ class TelemetryService {
         networkType = 'none';
       }
 
-      await _rtdb.ref('telemetry/$uid').update({
-        'battery': batteryLevel,
-        'network': networkType,
-        'isOnline': networkType != 'none',
-        'lastActive': ServerValue.timestamp,
-      });
+      final data = TelemetryData(
+        battery: batteryLevel,
+        network: networkType,
+        isOnline: networkType != 'none',
+        lastActive: DateTime.now().millisecondsSinceEpoch,
+      );
+
+      if (_partnerTelemetryStreams.containsKey(uid) && !_partnerTelemetryStreams[uid]!.isClosed) {
+        _partnerTelemetryStreams[uid]!.add(data);
+      }
     } catch (_) {}
   }
 
-  static Stream<DatabaseEvent> streamPartnerTelemetry(String partnerUid) {
-    return _rtdb.ref('telemetry/$partnerUid').onValue;
+  static Stream<TelemetryData> streamPartnerTelemetry(String partnerUid) {
+    final controller = _partnerTelemetryStreams.putIfAbsent(
+      partnerUid,
+      () => StreamController<TelemetryData>.broadcast(),
+    );
+    return controller.stream;
   }
 
   static void dispose() {
     _batterySub?.cancel();
     _connectivitySub?.cancel();
+    for (final c in _partnerTelemetryStreams.values) {
+      c.close();
+    }
+    _partnerTelemetryStreams.clear();
   }
 }

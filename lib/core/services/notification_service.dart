@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import '../../features/chat/chat_screen.dart';
+import '../network/api_client.dart';
+import '../repositories/notification_repository.dart';
 import 'chat_service.dart';
 
 /// Top-level background message handler required by firebase_messaging
@@ -18,18 +19,21 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 /// NotificationService
 ///
-/// Production FCM Push Notification infrastructure for Astra Chat.
+/// Production FCM Push Notification infrastructure for Astra Chat using the Astra VPS Backend.
 ///
 /// Features:
-/// - Secure per-user device token registration under `/users/{uid}/devices/{deviceId}`
+/// - Secure per-user device token registration via `POST /api/v1/devices`
 /// - Token refresh lifecycle synchronization
 /// - Token cleanup upon sign out
 /// - Safe notification payload routing (verifies participant identity before navigating)
 /// - Zero plaintext message content or encryption keys in notification payloads
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final AstraApiClient _apiClient = AstraApiClient(
+    tokenProvider: () async => _auth.currentUser?.getIdToken(),
+  );
+  static final NotificationRepository _notifRepo = NotificationRepository(apiClient: _apiClient);
 
   static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   static StreamSubscription<String>? _tokenRefreshSub;
@@ -73,7 +77,7 @@ class NotificationService {
 
       // 5. Handle foreground notifications
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        // Foreground notification received - UI updates naturally via Firestore stream
+        // Foreground notification received - UI updates naturally via WebSocket
       });
 
       // 6. Handle notification click when app is opened from background
@@ -104,15 +108,12 @@ class NotificationService {
     return 'device_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// Register current device token under `/users/{uid}/devices/{deviceId}`
+  /// Register current device token with VPS
   static Future<void> registerDeviceToken(String uid) async {
     try {
       if (Platform.isIOS) {
         final apnsToken = await _messaging.getAPNSToken();
-        if (apnsToken == null) {
-          // On iOS without APNs entitlement or before token arrival, avoid throwing apns-token-not-set
-          return;
-        }
+        if (apnsToken == null) return;
       }
       final token = await _messaging.getToken();
       if (token == null || token.isEmpty) return;
@@ -123,18 +124,11 @@ class NotificationService {
   static Future<void> _saveDeviceToken(String uid, String token) async {
     try {
       final deviceId = await getDeviceId();
-      final deviceRef = _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('devices')
-          .doc(deviceId);
-
-      await deviceRef.set({
-        'deviceId': deviceId,
-        'fcmToken': token,
-        'platform': Platform.operatingSystem,
-        'updatedAt': DateTime.now().millisecondsSinceEpoch,
-      });
+      await _notifRepo.registerDeviceToken(
+        deviceId: deviceId,
+        platform: Platform.operatingSystem,
+        fcmToken: token,
+      );
     } catch (_) {}
   }
 
@@ -142,27 +136,17 @@ class NotificationService {
   static Future<void> unregisterDeviceToken(String uid) async {
     try {
       final deviceId = await getDeviceId();
-      await _firestore
-          .collection('users')
-          .doc(uid)
-          .collection('devices')
-          .doc(deviceId)
-          .delete();
+      await _notifRepo.unregisterDevice(deviceId);
     } catch (_) {}
   }
 
   /// Validate notification payload and route to the correct conversation
-  ///
-  /// Security:
-  /// - Validates payload type == 'chat_message'
-  /// - Verifies authenticated user is a legitimate participant of the conversation
-  /// - Rejects spoofed or unauthorized conversation IDs
   static Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
     final type = data['type'] as String?;
-    if (type != 'chat_message') return;
+    if (type != 'chat_message' && type != 'chat.message') return;
 
-    final conversationId = data['conversationId'] as String?;
-    final senderId = data['senderId'] as String?;
+    final conversationId = (data['conversationId'] ?? data['conversation_id']) as String?;
+    final senderId = (data['senderId'] ?? data['sender_id']) as String?;
     final currentUid = _auth.currentUser?.uid;
 
     if (conversationId == null || senderId == null || currentUid == null) {
@@ -175,29 +159,19 @@ class NotificationService {
       return;
     }
 
-    // Fetch sender profile details to populate ChatScreen header
-    try {
-      final senderDoc = await _firestore.collection('users').doc(senderId).get();
-      final senderData = senderDoc.data() ?? {};
-      final partnerName = (senderData['name'] as String?) ?? 'Friend';
-      final partnerPhoto = senderData['photoUrl'] as String?;
+    final partnerName = (data['sender_name'] as String?) ?? 'Friend';
 
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(
-          builder: (context) => ChatScreen(
-            partnerUid: senderId,
-            partnerName: partnerName,
-            partnerPhoto: partnerPhoto,
-          ),
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          partnerUid: senderId,
+          partnerName: partnerName,
         ),
-      );
-    } catch (_) {}
+      ),
+    );
   }
 
   /// Build standard generic FCM notification payload
-  ///
-  /// Strictly verifies that NO plaintext message text, ciphertext previews,
-  /// or cryptographic secrets are included.
   static Map<String, dynamic> buildGenericNotificationPayload({
     required String conversationId,
     required String senderId,

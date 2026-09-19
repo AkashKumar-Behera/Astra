@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as ll;
-import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/services/auth_service.dart';
@@ -305,12 +303,16 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<List<Map<String, dynamic>>> _fetchPartnersData(List<String> uids) async {
-    if (uids.isEmpty) return [];
     try {
-      final docs = await Future.wait(
-        uids.map((uid) => FirebaseFirestore.instance.collection('users').doc(uid).get()),
-      );
-      return docs.where((d) => d.exists && d.data() != null).map((d) => d.data()!).toList();
+      final friends = await AuthService.fetchFriends();
+      return friends.map((f) => {
+        'uid': (f['friend_user_id'] ?? f['id'] ?? f['firebase_uid'] ?? '').toString(),
+        'name': (f['display_name'] ?? f['name'] ?? 'Friend').toString(),
+        'photoUrl': f['avatar_url'] ?? f['photoUrl'],
+        'phoneNumber': (f['phone_number'] ?? f['phoneNumber'] ?? '').toString(),
+        'latitude': f['latitude'],
+        'longitude': f['longitude'],
+      }).toList();
     } catch (_) {
       return [];
     }
@@ -321,11 +323,11 @@ class _HomeScreenState extends State<HomeScreen>
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return const SizedBox.shrink();
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<Map<String, dynamic>>(
       stream: AuthService.streamUser(currentUser.uid),
       builder: (context, userSnap) {
-        final userData = userSnap.data?.data();
-        final myPhone = (userData?['phoneNumber'] as String?) ?? '';
+        final userData = userSnap.data;
+        final myPhone = (userData?['phone_number'] ?? userData?['phoneNumber'] as String?) ?? '';
         final connectionUids = List<String>.from(userData?['connections'] ?? []);
 
         return Scaffold(
@@ -1065,20 +1067,17 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ],
           ),
-          child: StreamBuilder<DatabaseEvent>(
+          child: StreamBuilder<TelemetryData>(
             stream: TelemetryService.streamPartnerTelemetry(pUid),
             builder: (context, teleSnap) {
               int battery = 85;
               String network = 'wifi';
               bool isOnline = true;
 
-              if (teleSnap.hasData && teleSnap.data!.snapshot.value != null) {
-                try {
-                  final val = Map<dynamic, dynamic>.from(teleSnap.data!.snapshot.value as Map);
-                  battery = (val['battery'] as num?)?.toInt() ?? battery;
-                  network = (val['network'] as String?) ?? network;
-                  isOnline = (val['isOnline'] as bool?) ?? isOnline;
-                } catch (_) {}
+              if (teleSnap.hasData && teleSnap.data != null) {
+                battery = teleSnap.data!.battery;
+                network = teleSnap.data!.network;
+                isOnline = teleSnap.data!.isOnline;
               }
 
               return ListView(
@@ -1227,16 +1226,13 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
 
-                  // Real-time RTDB Partner Location Stream & Refresh Tile
-                  StreamBuilder<DatabaseEvent>(
+                  // Real-time Partner Location Stream & Refresh Tile
+                  StreamBuilder<Map<String, dynamic>>(
                     stream: LocationRtdbService.streamPartnerLocation(pUid),
                     builder: (context, locSnap) {
                       int? updatedAt;
-                      if (locSnap.hasData && locSnap.data!.snapshot.value != null) {
-                        try {
-                          final locMap = Map<dynamic, dynamic>.from(locSnap.data!.snapshot.value as Map);
-                          updatedAt = (locMap['updatedAt'] as num?)?.toInt();
-                        } catch (_) {}
+                      if (locSnap.hasData && locSnap.data != null) {
+                        updatedAt = locSnap.data!['updatedAt'] as int?;
                       }
 
                       final isFresh = LocationRtdbService.isLocationFresh(updatedAt);
@@ -1478,8 +1474,8 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
 
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
-      final myDoc = await FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get();
-      _myConnectedUserIds = List<String>.from(myDoc.data()?['connections'] ?? []);
+      final friends = await AuthService.fetchFriends();
+      _myConnectedUserIds = friends.map((f) => (f['friend_user_id'] ?? f['id'] ?? f['firebase_uid'] ?? '').toString()).toList();
     }
 
     try {

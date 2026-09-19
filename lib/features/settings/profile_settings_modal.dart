@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/services/auth_service.dart';
+import '../../core/services/r2_storage_service.dart';
 import '../../core/theme/astra_theme.dart';
 
 class ProfileSettingsModal extends StatefulWidget {
@@ -43,14 +43,11 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
   Future<void> _loadCurrentStatus() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists) {
-        final data = doc.data();
-        if (mounted) {
-          setState(() {
-            _statusController.text = (data?['status'] as String?) ?? 'Exploring the stars ✨';
-          });
-        }
+      final profile = await AuthService.getUserProfile(uid);
+      if (profile != null && mounted) {
+        setState(() {
+          _statusController.text = (profile['status'] as String?) ?? 'Exploring the stars ✨';
+        });
       }
     }
   }
@@ -66,22 +63,36 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
       setState(() => _isUploadingPhoto = true);
 
       final file = File(picked.path);
-      final ref = FirebaseStorage.instance.ref('profiles/$uid/avatar.jpg');
-      await ref.putFile(file);
-      final downloadUrl = await ref.getDownloadURL();
-
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'photoUrl': downloadUrl,
-      });
-
-      if (mounted) {
-        setState(() {
-          _photoUrl = downloadUrl;
-          _isUploadingPhoto = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated!'), backgroundColor: AstraTheme.primary),
+      String? downloadUrl;
+      if (R2StorageService.isConfigured) {
+        downloadUrl = await R2StorageService.uploadFile(
+          file: file,
+          remotePath: 'profile_pictures/$uid.jpg',
+          contentType: 'image/jpeg',
         );
+      }
+
+      if (downloadUrl != null) {
+        await AuthService.saveUserProfile(
+          uid: uid,
+          name: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : widget.initialName,
+          phoneNumber: widget.myPhone,
+          photoUrl: downloadUrl,
+        );
+
+        if (mounted) {
+          setState(() {
+            _photoUrl = downloadUrl;
+            _isUploadingPhoto = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile photo updated!'), backgroundColor: AstraTheme.primary),
+          );
+        }
+      } else {
+        if (mounted) {
+          setState(() => _isUploadingPhoto = false);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -98,21 +109,21 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
     if (uid == null) return;
 
     final newName = _nameController.text.trim();
-    final newStatus = _statusController.text.trim();
-
     if (newName.isEmpty) return;
 
     setState(() => _isSaving = true);
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'name': newName,
-        'status': newStatus.isNotEmpty ? newStatus : 'Exploring the stars ✨',
-      });
+      await AuthService.saveUserProfile(
+        uid: uid,
+        name: newName,
+        phoneNumber: widget.myPhone,
+        photoUrl: _photoUrl,
+      );
 
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile & Status updated!'), backgroundColor: AstraTheme.primary),
+          const SnackBar(content: Text('Profile updated!'), backgroundColor: AstraTheme.primary),
         );
         Navigator.pop(context);
       }

@@ -3,27 +3,32 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:firebase_database/firebase_database.dart';
+import '../network/websocket_client.dart';
+import '../repositories/call_repository.dart';
 
 class WebRtcChatService {
   final String currentUid;
   final String partnerUid;
   final Function(String message, DateTime time, bool isMe) onMessageReceived;
   final Function(bool isConnected) onConnectionStateChanged;
+  final AstraWebSocketClient? wsClient;
 
   static const String _cfTurnKeyId = String.fromEnvironment('CLOUDFLARE_TURN_KEY_ID');
   static const String _cfApiToken = String.fromEnvironment('CLOUDFLARE_TURN_API_TOKEN');
 
   RTCPeerConnection? _peerConnection;
   RTCDataChannel? _dataChannel;
-  StreamSubscription? _signalingSub;
-  final FirebaseDatabase _rtdb = FirebaseDatabase.instance;
+  CallRepository? _callRepo;
+  StreamSubscription? _offerSub;
+  StreamSubscription? _answerSub;
+  StreamSubscription? _iceSub;
 
   WebRtcChatService({
     required this.currentUid,
     required this.partnerUid,
     required this.onMessageReceived,
     required this.onConnectionStateChanged,
+    this.wsClient,
   });
 
   String get _roomKey {
@@ -87,24 +92,31 @@ class WebRtcChatService {
 
   Future<void> init() async {
     final config = await _getIceConfiguration();
-
     _peerConnection = await createPeerConnection(config);
+
+    if (wsClient != null) {
+      _callRepo = CallRepository(wsClient: wsClient!);
+    }
 
     _peerConnection?.onIceConnectionState = (state) {
       if (state == RTCIceConnectionState.RTCIceConnectionStateConnected) {
         onConnectionStateChanged(true);
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected ||
-                 state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
+          state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
         onConnectionStateChanged(false);
       }
     };
 
     _peerConnection?.onIceCandidate = (candidate) {
-      _rtdb.ref('webrtc_signaling/$_roomKey/candidates/$currentUid').push().set({
-        'candidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMLineIndex': candidate.sdpMLineIndex,
-      });
+      if (_callRepo != null) {
+        _callRepo!.sendIceCandidate(
+          callId: _roomKey,
+          recipientId: partnerUid,
+          candidate: candidate.candidate ?? '',
+          sdpMid: candidate.sdpMid,
+          sdpMLineIndex: candidate.sdpMLineIndex,
+        );
+      }
     };
 
     // Determine who creates the DataChannel (lexicographically first UID)
@@ -146,11 +158,13 @@ class WebRtcChatService {
     final offer = await _peerConnection?.createOffer();
     if (offer != null) {
       await _peerConnection?.setLocalDescription(offer);
-      await _rtdb.ref('webrtc_signaling/$_roomKey/offer').set({
-        'sdp': offer.sdp,
-        'type': offer.type,
-        'sender': currentUid,
-      });
+      if (_callRepo != null) {
+        _callRepo!.sendOffer(
+          callId: _roomKey,
+          recipientId: partnerUid,
+          sdp: offer.sdp ?? '',
+        );
+      }
     }
   }
 
@@ -159,51 +173,52 @@ class WebRtcChatService {
     final answer = await _peerConnection?.createAnswer();
     if (answer != null) {
       await _peerConnection?.setLocalDescription(answer);
-      await _rtdb.ref('webrtc_signaling/$_roomKey/answer').set({
-        'sdp': answer.sdp,
-        'type': answer.type,
-        'sender': currentUid,
-      });
+      if (_callRepo != null) {
+        _callRepo!.sendAnswer(
+          callId: _roomKey,
+          recipientId: partnerUid,
+          sdp: answer.sdp ?? '',
+        );
+      }
     }
   }
 
   void _listenSignaling() {
-    _signalingSub = _rtdb.ref('webrtc_signaling/$_roomKey').onValue.listen((event) async {
-      if (!event.snapshot.exists || event.snapshot.value == null) return;
-      final data = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+    if (_callRepo == null) return;
 
-      // 1. Answer received
-      if (data.containsKey('answer') && currentUid.compareTo(partnerUid) < 0) {
-        final ans = Map<dynamic, dynamic>.from(data['answer'] as Map);
-        if (ans['sender'] != currentUid) {
-          final desc = RTCSessionDescription(ans['sdp'], ans['type']);
+    _answerSub = _callRepo!.onCallAnswer.listen((event) async {
+      final payload = event.payload;
+      if (currentUid.compareTo(partnerUid) < 0 && payload['sender_id'] == partnerUid) {
+        final sdp = payload['sdp'] as String?;
+        if (sdp != null) {
+          final desc = RTCSessionDescription(sdp, 'answer');
           await _peerConnection?.setRemoteDescription(desc);
         }
       }
+    });
 
-      // 2. Offer received
-      if (data.containsKey('offer') && currentUid.compareTo(partnerUid) > 0) {
-        final off = Map<dynamic, dynamic>.from(data['offer'] as Map);
-        if (off['sender'] != currentUid && _peerConnection?.getRemoteDescription() == null) {
-          final desc = RTCSessionDescription(off['sdp'], off['type']);
+    _offerSub = _callRepo!.onCallOffer.listen((event) async {
+      final payload = event.payload;
+      if (currentUid.compareTo(partnerUid) > 0 && payload['sender_id'] == partnerUid) {
+        final sdp = payload['sdp'] as String?;
+        if (sdp != null && _peerConnection?.getRemoteDescription() == null) {
+          final desc = RTCSessionDescription(sdp, 'offer');
           await _createAnswer(desc);
         }
       }
+    });
 
-      // 3. ICE Candidates
-      if (data.containsKey('candidates')) {
-        final candidatesMap = Map<dynamic, dynamic>.from(data['candidates'] as Map);
-        if (candidatesMap.containsKey(partnerUid)) {
-          final partnerCandidates = Map<dynamic, dynamic>.from(candidatesMap[partnerUid] as Map);
-          for (final cData in partnerCandidates.values) {
-            final c = Map<dynamic, dynamic>.from(cData as Map);
-            final candidate = RTCIceCandidate(
-              c['candidate'],
-              c['sdpMid'],
-              c['sdpMLineIndex'],
-            );
-            await _peerConnection?.addCandidate(candidate);
-          }
+    _iceSub = _callRepo!.onIceCandidate.listen((event) async {
+      final payload = event.payload;
+      if (payload['sender_id'] == partnerUid) {
+        final candidateStr = payload['candidate'] as String?;
+        if (candidateStr != null && candidateStr.isNotEmpty) {
+          final candidate = RTCIceCandidate(
+            candidateStr,
+            payload['sdp_mid'] as String?,
+            payload['sdp_m_line_index'] as int?,
+          );
+          await _peerConnection?.addCandidate(candidate);
         }
       }
     });
@@ -220,20 +235,14 @@ class WebRtcChatService {
       _dataChannel!.send(RTCDataChannelMessage(payload));
       onMessageReceived(text, now, true);
       return true;
-    } else {
-      // Fallback message over RTDB if P2P channel not yet open
-      _rtdb.ref('chat_fallback/$_roomKey').push().set({
-        'text': text,
-        'sender': currentUid,
-        'time': now.millisecondsSinceEpoch,
-      });
-      onMessageReceived(text, now, true);
-      return true;
     }
+    return false;
   }
 
   void dispose() {
-    _signalingSub?.cancel();
+    _offerSub?.cancel();
+    _answerSub?.cancel();
+    _iceSub?.cancel();
     _dataChannel?.close();
     _peerConnection?.close();
   }

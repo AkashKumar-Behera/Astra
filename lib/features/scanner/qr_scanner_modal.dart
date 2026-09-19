@@ -138,7 +138,7 @@ class _QrScannerModalState extends State<QrScannerModal> {
               margin: const EdgeInsets.symmetric(horizontal: 24),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AstraTheme.primary.withOpacity(0.5)),
+                border: Border.all(color: AstraTheme.primary.withValues(alpha: 0.5)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
