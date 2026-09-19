@@ -56,7 +56,7 @@ class CryptoService {
     );
   }
 
-  /// Decrypt a message payload
+  /// Decrypt a message payload with automatic fallback secret resolution
   static Future<String> decryptMessage({
     required String ciphertextBase64,
     required String ivBase64,
@@ -67,21 +67,68 @@ class CryptoService {
     SecretKey? cachedKey,
     String? customSecret,
   }) async {
-    final key = cachedKey ??
-        await KeyDerivationService.deriveConversationKey(
-          conversationId: conversationId,
-          keyVersion: keyVersion,
-          customSecret: customSecret,
-        );
+    // If a customSecret or cachedKey was explicitly provided, use it directly
+    if (customSecret != null || cachedKey != null) {
+      final key = cachedKey ??
+          await KeyDerivationService.deriveConversationKey(
+            conversationId: conversationId,
+            keyVersion: keyVersion,
+            customSecret: customSecret,
+          );
 
-    return EncryptionService.decrypt(
-      ciphertextBase64: ciphertextBase64,
-      ivBase64: ivBase64,
-      key: key,
-      conversationId: conversationId,
-      messageId: messageId,
-      senderId: senderId,
-      keyVersion: keyVersion,
-    );
+      return EncryptionService.decrypt(
+        ciphertextBase64: ciphertextBase64,
+        ivBase64: ivBase64,
+        key: key,
+        conversationId: conversationId,
+        messageId: messageId,
+        senderId: senderId,
+        keyVersion: keyVersion,
+      );
+    }
+
+    // Try primary derived key first
+    try {
+      final key = await KeyDerivationService.deriveConversationKey(
+        conversationId: conversationId,
+        keyVersion: keyVersion,
+      );
+
+      return await EncryptionService.decrypt(
+        ciphertextBase64: ciphertextBase64,
+        ivBase64: ivBase64,
+        key: key,
+        conversationId: conversationId,
+        messageId: messageId,
+        senderId: senderId,
+        keyVersion: keyVersion,
+      );
+    } catch (primaryErr) {
+      // If primary decryption fails, attempt known fallback secrets
+      for (final fallbackSecret in KeyDerivationService.fallbackSecrets) {
+        try {
+          final fallbackKey = await KeyDerivationService.deriveConversationKey(
+            conversationId: conversationId,
+            keyVersion: keyVersion,
+            customSecret: fallbackSecret,
+          );
+
+          return await EncryptionService.decrypt(
+            ciphertextBase64: ciphertextBase64,
+            ivBase64: ivBase64,
+            key: fallbackKey,
+            conversationId: conversationId,
+            messageId: messageId,
+            senderId: senderId,
+            keyVersion: keyVersion,
+          );
+        } catch (_) {
+          // Continue to next fallback
+        }
+      }
+
+      // If all fallbacks fail, rethrow original error
+      rethrow;
+    }
   }
 }

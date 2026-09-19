@@ -197,19 +197,25 @@ class ChatService {
             final decrypted = await CryptoService.decryptMessage(
               ciphertextBase64: rawMessage.ciphertext,
               ivBase64: rawMessage.iv,
-              conversationId: rawMessage.conversationId.isNotEmpty
-                  ? rawMessage.conversationId
-                  : conversationId,
-              messageId: rawMessage.id,
-              senderId: rawMessage.senderId,
+              conversationId: rawMessage.conversationId.trim().isNotEmpty
+                  ? rawMessage.conversationId.trim()
+                  : conversationId.trim(),
+              messageId: rawMessage.id.trim().isNotEmpty
+                  ? rawMessage.id.trim()
+                  : doc.id.trim(),
+              senderId: rawMessage.senderId.trim(),
               keyVersion: rawMessage.keyVersion,
             );
 
-            messages.add(rawMessage.copyWith(decryptedText: decrypted));
+            messages.add(rawMessage.copyWith(
+              id: rawMessage.id.trim().isNotEmpty ? rawMessage.id.trim() : doc.id.trim(),
+              decryptedText: decrypted,
+            ));
           } catch (cryptoErr) {
             // Decryption failure (tag mismatch, key mismatch, corrupted data)
             messages.add(
               rawMessage.copyWith(
+                id: rawMessage.id.trim().isNotEmpty ? rawMessage.id.trim() : doc.id.trim(),
                 status: MessageStatus.failed,
                 decryptionError: 'Decryption failed: ${cryptoErr.toString()}',
               ),
@@ -249,18 +255,24 @@ class ChatService {
           final decrypted = await CryptoService.decryptMessage(
             ciphertextBase64: rawMessage.ciphertext,
             ivBase64: rawMessage.iv,
-            conversationId: rawMessage.conversationId.isNotEmpty
-                ? rawMessage.conversationId
-                : conversationId,
-            messageId: rawMessage.id,
-            senderId: rawMessage.senderId,
+            conversationId: rawMessage.conversationId.trim().isNotEmpty
+                ? rawMessage.conversationId.trim()
+                : conversationId.trim(),
+            messageId: rawMessage.id.trim().isNotEmpty
+                ? rawMessage.id.trim()
+                : doc.id.trim(),
+            senderId: rawMessage.senderId.trim(),
             keyVersion: rawMessage.keyVersion,
           );
 
-          messages.add(rawMessage.copyWith(decryptedText: decrypted));
+          messages.add(rawMessage.copyWith(
+            id: rawMessage.id.trim().isNotEmpty ? rawMessage.id.trim() : doc.id.trim(),
+            decryptedText: decrypted,
+          ));
         } catch (cryptoErr) {
           messages.add(
             rawMessage.copyWith(
+              id: rawMessage.id.trim().isNotEmpty ? rawMessage.id.trim() : doc.id.trim(),
               status: MessageStatus.failed,
               decryptionError: 'Decryption failed: ${cryptoErr.toString()}',
             ),

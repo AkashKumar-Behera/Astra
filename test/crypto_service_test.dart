@@ -295,5 +295,27 @@ void main() {
       expect(decryptedV1, equals('Legacy message from 2025'));
       expect(decryptedV2, equals('Modern message from 2026'));
     });
+
+    test('13. Cross-environment fallback secret successfully decrypts message sent with legacy secret', () async {
+      const legacySecret = 'ASTRA_CORE_AES256_GCM_ROOT_SECRET_V1_7A9F8E4D3C2B1A0E';
+      final legacyPayload = await CryptoService.encryptMessage(
+        plaintext: 'Hello from legacy / debug environment',
+        conversationId: conversationId,
+        messageId: 'msg_legacy_001',
+        senderId: senderId,
+        customSecret: legacySecret,
+      );
+
+      // Decrypt without passing customSecret (tests automatic fallback to legacy secret)
+      final decrypted = await CryptoService.decryptMessage(
+        ciphertextBase64: legacyPayload.ciphertextBase64,
+        ivBase64: legacyPayload.ivBase64,
+        conversationId: conversationId,
+        messageId: 'msg_legacy_001',
+        senderId: senderId,
+      );
+
+      expect(decrypted, equals('Hello from legacy / debug environment'));
+    });
   });
 }

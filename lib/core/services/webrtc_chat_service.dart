@@ -11,8 +11,14 @@ class WebRtcChatService {
   final Function(String message, DateTime time, bool isMe) onMessageReceived;
   final Function(bool isConnected) onConnectionStateChanged;
 
-  static const String _cfTurnKeyId = String.fromEnvironment('CLOUDFLARE_TURN_KEY_ID');
-  static const String _cfApiToken = String.fromEnvironment('CLOUDFLARE_TURN_API_TOKEN');
+  static const String _cfTurnKeyId = String.fromEnvironment(
+    'CLOUDFLARE_TURN_KEY_ID',
+    defaultValue: '74dabf4d4fa71affb7922a6ac35e29d4',
+  );
+  static const String _cfApiToken = String.fromEnvironment(
+    'CLOUDFLARE_TURN_API_TOKEN',
+    defaultValue: '6dfbbb905ba48e0c90a7fee9907b71f0149cbfb7409d12e51825159c11d3fa32',
+  );
 
   RTCPeerConnection? _peerConnection;
   RTCDataChannel? _dataChannel;

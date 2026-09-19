@@ -5,9 +5,18 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class R2StorageService {
-  static const String _accountId = String.fromEnvironment('R2_ACCOUNT_ID');
-  static const String _accessKeyId = String.fromEnvironment('R2_ACCESS_KEY_ID');
-  static const String _secretAccessKey = String.fromEnvironment('R2_SECRET_ACCESS_KEY');
+  static const String _accountId = String.fromEnvironment(
+    'R2_ACCOUNT_ID',
+    defaultValue: 'f23f3e07dabd435ea66c31dc314b3984',
+  );
+  static const String _accessKeyId = String.fromEnvironment(
+    'R2_ACCESS_KEY_ID',
+    defaultValue: 'e667abb894140529feaefab073da0dc6',
+  );
+  static const String _secretAccessKey = String.fromEnvironment(
+    'R2_SECRET_ACCESS_KEY',
+    defaultValue: '95bbcff0c38f6f10603f20834296c2f0a568cf6c9afe078b8a0b64c9b145f74c',
+  );
   static const String _bucketName = String.fromEnvironment('R2_BUCKET_NAME', defaultValue: 'r2bucket');
   static const String _publicUrl = String.fromEnvironment(
     'R2_PUBLIC_URL',

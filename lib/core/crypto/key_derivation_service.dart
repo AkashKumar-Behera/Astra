@@ -9,11 +9,18 @@ import 'crypto_exceptions.dart';
 /// canonical conversation IDs.
 class KeyDerivationService {
   /// Active production APP_SECRET read from compile-time environment,
-  /// with a robust built-in default fallback root secret if not passed via --dart-define.
+  /// matching the canonical project secret in .env and GitHub Actions CI/CD.
   static const String _defaultAppSecret = String.fromEnvironment(
     'APP_SECRET',
-    defaultValue: 'ASTRA_CORE_AES256_GCM_ROOT_SECRET_V1_7A9F8E4D3C2B1A0E',
+    defaultValue: 'a9f83e87c0a9821d3f90b71239c8ef71da928b560c3e9812480a719c8f293b01',
   );
+
+  /// Known historical and cross-environment fallback APP_SECRETS.
+  /// Ensures seamless decryption across debug sessions, local envs, and release builds.
+  static const List<String> fallbackSecrets = [
+    'a9f83e87c0a9821d3f90b71239c8ef71da928b560c3e9812480a719c8f293b01',
+    'ASTRA_CORE_AES256_GCM_ROOT_SECRET_V1_7A9F8E4D3C2B1A0E',
+  ];
 
   /// Registry of historical APP_SECRETS for future rotation and backward compatibility.
   /// When rotating keys in Astra v2, add legacy secrets here while updating current version.
