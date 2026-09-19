@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isRefreshingLocation = false;
   double _mapRotation = 0.0;
   bool _isPrecachingMap = false;
+  bool _showCityLights = true;
 
   @override
   void initState() {
@@ -75,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen>
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString('astra_map_style');
+      final savedLights = prefs.getBool('astra_show_city_lights');
       if (saved != null) {
         final match = AstraMapStyle.values.firstWhere(
           (s) => s.name == saved,
@@ -82,6 +84,17 @@ class _HomeScreenState extends State<HomeScreen>
         );
         if (mounted) setState(() => _currentMapStyle = match);
       }
+      if (savedLights != null && mounted) {
+        setState(() => _showCityLights = savedLights);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleCityLights(bool val) async {
+    setState(() => _showCityLights = val);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('astra_show_city_lights', val);
     } catch (_) {}
   }
 
@@ -869,6 +882,72 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       );
                     }),
+                    const SizedBox(height: 6),
+                    // City Night Lights (Houses, Buildings & Street Glow) Toggle
+                    _GlassContainer(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      borderRadius: 18,
+                      blur: 14,
+                      color: _showCityLights
+                          ? const Color(0xFFA594F9).withValues(alpha: 0.15)
+                          : Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: _showCityLights
+                            ? const Color(0xFFA594F9).withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.10),
+                        width: 1.2,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E1B4B),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFFA594F9).withValues(alpha: 0.6),
+                              ),
+                            ),
+                            child: const Icon(Icons.lightbulb_rounded, color: Color(0xFFFFD54F), size: 22),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'City Night Lights',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Yellow, white & purple lights on buildings',
+                                  style: TextStyle(
+                                    color: AstraTheme.textSecondary,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch.adaptive(
+                            value: _showCityLights,
+                            activeThumbColor: const Color(0xFFA594F9),
+                            activeTrackColor: const Color(0xFF6D28D9),
+                            onChanged: (val) {
+                              _toggleCityLights(val);
+                              setModalState(() {});
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -960,6 +1039,129 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // -------------------------------------------------------------
+  // REALISTIC GLOWING CITY NIGHT LIGHTS (Houses, Buildings & Streets)
+  // -------------------------------------------------------------
+  List<CircleMarker> _buildCityNightLights({
+    required double? myLat,
+    required double? myLng,
+    required List<Map<String, dynamic>> partners,
+  }) {
+    if (_currentMapStyle == AstraMapStyle.voyager) {
+      return const []; // Daytime street mode doesn't need night lights
+    }
+
+    final lights = <CircleMarker>[];
+    final epicenters = <ll.LatLng>[];
+
+    if (myLat != null && myLng != null) {
+      epicenters.add(ll.LatLng(myLat, myLng));
+    }
+
+    for (final p in partners) {
+      final pLat = (p['latitude'] as num?)?.toDouble();
+      final pLng = (p['longitude'] as num?)?.toDouble();
+      if (pLat != null && pLng != null) {
+        epicenters.add(ll.LatLng(pLat, pLng));
+      }
+    }
+
+    if (epicenters.isEmpty) {
+      return const [];
+    }
+
+    // Color palettes matching night satellite illumination (Screen4.png):
+    // 1. Warm amber & golden yellow (residential house windows & warm lamps)
+    const yellowPalette = [
+      Color(0xFFFFD54F),
+      Color(0xFFFFE082),
+      Color(0xFFFFCA28),
+      Color(0xFFFFB300),
+    ];
+    // 2. Crisp bright white (modern LED streetlights & commercial high-rises)
+    const whitePalette = [
+      Color(0xFFFFFFFF),
+      Color(0xFFFFF9C4),
+      Color(0xFFF8FAFC),
+    ];
+    // 3. Neon purple & lavender (Astra signature cybernetic city lighting & neon accents)
+    const purplePalette = [
+      Color(0xFFA594F9),
+      Color(0xFFC084FC),
+      Color(0xFFE879F9),
+      Color(0xFF818CF8),
+    ];
+
+    for (int centerIdx = 0; centerIdx < epicenters.length; centerIdx++) {
+      final center = epicenters[centerIdx];
+      // Deterministic coordinate-based seed so lights are 100% stationary and never jump on zoom/pan
+      final seed = ((center.latitude * 10000).abs().round() * 73856093) ^
+          ((center.longitude * 10000).abs().round() * 19349663) ^
+          (centerIdx * 83492791);
+      final rng = math.Random(seed);
+
+      final totalLights = centerIdx == 0 ? 250 : 160;
+
+      // Generate road arterial rays (streets branching out into blocks)
+      final numStreets = 8 + rng.nextInt(5);
+      final streetAngles = List.generate(
+        numStreets,
+        (i) => (i * (2 * math.pi / numStreets)) + (rng.nextDouble() * 0.2 - 0.1),
+      );
+
+      for (int i = 0; i < totalLights; i++) {
+        final double lightLat;
+        final double lightLng;
+
+        if (i < totalLights * 0.65) {
+          // 65% of lights aligned along streets, house setbacks & residential alleys
+          final streetAngle = streetAngles[rng.nextInt(streetAngles.length)];
+          final streetDistance = 0.0003 + (math.pow(rng.nextDouble(), 1.4) * 0.020); // ~35m to ~2.2km
+          // Offset along street lane + residential building setback (left/right of road)
+          final lateralOffset = (rng.nextDouble() - 0.5) * 0.0007; // ~40m road width / house setback
+          final lateralAngle = streetAngle + (math.pi / 2);
+
+          lightLat = center.latitude + (streetDistance * math.sin(streetAngle)) + (lateralOffset * math.sin(lateralAngle));
+          lightLng = center.longitude + (streetDistance * math.cos(streetAngle)) + (lateralOffset * math.cos(lateralAngle));
+        } else {
+          // 35% dispersed residential block clusters, rooftop terraces & apartment windows
+          final angle = rng.nextDouble() * 2 * math.pi;
+          final dist = 0.0004 + (math.pow(rng.nextDouble(), 1.7) * 0.018);
+          lightLat = center.latitude + (dist * math.sin(angle));
+          lightLng = center.longitude + (dist * math.cos(angle));
+        }
+
+        // Color distribution:
+        // 50% Yellow/Amber (warm homes), 30% Crisp White (streetlamps), 20% Purple/Lavender (neon accents)
+        final colorRand = rng.nextDouble();
+        final Color baseColor;
+        if (colorRand < 0.50) {
+          baseColor = yellowPalette[rng.nextInt(yellowPalette.length)];
+        } else if (colorRand < 0.80) {
+          baseColor = whitePalette[rng.nextInt(whitePalette.length)];
+        } else {
+          baseColor = purplePalette[rng.nextInt(purplePalette.length)];
+        }
+
+        final radius = 1.9 + (rng.nextDouble() * 1.3); // 1.9 - 3.2 px
+        final haloWidth = 1.8 + (rng.nextDouble() * 1.4); // 1.8 - 3.2 px glowing border halo
+
+        lights.add(
+          CircleMarker(
+            point: ll.LatLng(lightLat, lightLng),
+            radius: radius,
+            useRadiusInMeter: false, // device pixels for pin-point star-like glow
+            color: baseColor.withValues(alpha: 0.92),
+            borderColor: baseColor.withValues(alpha: 0.40),
+            borderStrokeWidth: haloWidth,
+          ),
+        );
+      }
+    }
+
+    return lights;
+  }
+
+  // -------------------------------------------------------------
   // FULLSCREEN MAP WITH DYNAMIC TILE LAYER (CartoDB, OSM, Satellite)
   // -------------------------------------------------------------
   Widget _buildFullDarkMap({
@@ -974,6 +1176,9 @@ class _HomeScreenState extends State<HomeScreen>
 
     final markers = <Marker>[];
     final polylines = <Polyline>[];
+    final cityLights = _showCityLights
+        ? _buildCityNightLights(myLat: myLat, myLng: myLng, partners: partners)
+        : const <CircleMarker>[];
 
     // Current User Glowing Blue Pin (Matching Screen4.png)
     if (hasMyLoc) {
@@ -1264,6 +1469,7 @@ class _HomeScreenState extends State<HomeScreen>
       ),
       children: [
         _buildMapTileLayer(),
+        if (cityLights.isNotEmpty) CircleLayer(circles: cityLights),
         if (polylines.isNotEmpty) PolylineLayer(polylines: polylines),
         MarkerLayer(markers: markers),
       ],
