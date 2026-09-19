@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -45,6 +46,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   Position? _currentPosition;
+  StreamSubscription<Position>? _positionStreamSub;
   late AnimationController _pulseController;
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
@@ -95,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    _positionStreamSub?.cancel();
     LocationRtdbService.disposeLocationRequestListener();
     TelemetryService.dispose();
     _pulseController.dispose();
@@ -208,6 +211,19 @@ class _HomeScreenState extends State<HomeScreen>
         } catch (_) {}
         _precacheLocalArea(position.latitude, position.longitude);
       }
+
+      // 3. Continuous real-time GPS stream so user's pin tracks them live
+      _positionStreamSub?.cancel();
+      _positionStreamSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 3,
+        ),
+      ).listen((pos) {
+        if (mounted) {
+          setState(() => _currentPosition = pos);
+        }
+      });
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
@@ -426,9 +442,15 @@ class _HomeScreenState extends State<HomeScreen>
                   future: _fetchPartnersData(connectionUids),
                   builder: (context, partnersSnap) {
                     final partners = partnersSnap.data ?? [];
+                    final userLat = _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble();
+                    final userLng = _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble();
+                    final myPhoto = (userData?['photoUrl'] as String?) ?? widget.photoUrl;
+                    final myName = (userData?['name'] as String?) ?? widget.userName;
                     return _buildFullDarkMap(
-                      myLat: _currentPosition?.latitude,
-                      myLng: _currentPosition?.longitude,
+                      myLat: userLat,
+                      myLng: userLng,
+                      myPhoto: myPhoto,
+                      myName: myName,
                       partners: partners,
                     );
                   },
@@ -537,11 +559,15 @@ class _HomeScreenState extends State<HomeScreen>
                           padding: EdgeInsets.zero,
                           icon: const Icon(Icons.near_me_rounded, color: Color(0xFFA594F9), size: 24),
                           onPressed: () {
-                            if (_currentPosition != null) {
+                            final targetLat = _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble();
+                            final targetLng = _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble();
+                            if (targetLat != null && targetLng != null) {
                               _mapController.move(
-                                ll.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                                15.0,
+                                ll.LatLng(targetLat, targetLng),
+                                16.0,
                               );
+                            } else {
+                              _initLocation();
                             }
                           },
                         ),
@@ -985,6 +1011,8 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildFullDarkMap({
     required double? myLat,
     required double? myLng,
+    required String? myPhoto,
+    required String myName,
     required List<Map<String, dynamic>> partners,
   }) {
     final hasMyLoc = myLat != null && myLng != null;
@@ -995,66 +1023,126 @@ class _HomeScreenState extends State<HomeScreen>
     final markers = <Marker>[];
     final polylines = <Polyline>[];
 
-    // Current User Glowing Blue Pin (Matching Screen4.png)
+    // Current User Glowing Avatar Pin with PP (Profile Picture)
     if (hasMyLoc) {
       markers.add(
         Marker(
           point: ll.LatLng(myLat, myLng),
           width: 80,
-          height: 86,
+          height: 106,
           alignment: Alignment.center,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // "You" capsule badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 3.5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF14132B).withValues(alpha: 0.88),
+                  color: const Color(0xFF14132B).withValues(alpha: 0.90),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.0),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.0),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: Colors.black.withValues(alpha: 0.50),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: const Text('You', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'You',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                  ),
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
+
+              // User's Own PP Avatar with Glowing Cyan Ring & Live Status Dot
               Stack(
+                clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
                   Container(
-                    width: 48,
-                    height: 48,
+                    width: 58,
+                    height: 58,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFF4C6EF5).withValues(alpha: 0.22),
                       border: Border.all(
-                        color: const Color(0xFF4C6EF5).withValues(alpha: 0.45),
-                        width: 1.2,
+                        color: const Color(0xFF38BDF8), // Electric cyan/sky blue
+                        width: 2.8,
                       ),
-                    ),
-                  ),
-                  Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF5B7FFF),
-                      border: Border.all(color: Colors.white, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF4C6EF5).withValues(alpha: 0.85),
-                          blurRadius: 16,
+                          color: const Color(0xFF38BDF8).withValues(alpha: 0.65),
+                          blurRadius: 20,
                           spreadRadius: 3,
                         ),
                       ],
                     ),
+                    child: ClipOval(
+                      child: myPhoto != null && myPhoto.isNotEmpty
+                          ? Image.network(myPhoto, fit: BoxFit.cover)
+                          : Container(
+                              color: const Color(0xFF1E1B4B),
+                              child: Center(
+                                child: Text(
+                                  myName.isNotEmpty ? myName[0].toUpperCase() : 'U',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                  // Glowing Live Status Dot at 2 o'clock
+                  Positioned(
+                    top: 2,
+                    right: 2,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981), // Emerald green online/live
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF14132B), width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.8),
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 4),
+
+              // Cyan Road Anchor Dot
+              Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF38BDF8).withValues(alpha: 0.35),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF38BDF8),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -1271,10 +1359,10 @@ class _HomeScreenState extends State<HomeScreen>
         initialZoom: hasMyLoc ? 15.0 : 5.0,
         minZoom: 4.5,
         maxZoom: 21.0,
-        cameraConstraint: CameraConstraint.contain(
+        cameraConstraint: CameraConstraint.containCenter(
           bounds: LatLngBounds(
-            const ll.LatLng(6.0, 68.0),
-            const ll.LatLng(37.5, 97.5),
+            const ll.LatLng(4.0, 64.0),
+            const ll.LatLng(39.0, 100.0),
           ),
         ),
         interactionOptions: const InteractionOptions(
