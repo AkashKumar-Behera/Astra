@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/location_rtdb_service.dart';
 import '../../core/services/telemetry_service.dart';
+import '../../core/services/map_cache_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
 import '../settings/profile_settings_modal.dart';
@@ -50,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen>
   AstraMapStyle _currentMapStyle = AstraMapStyle.nocturne;
   bool _isRefreshingLocation = false;
   double _mapRotation = 0.0;
+  bool _isPrecachingMap = false;
 
   @override
   void initState() {
@@ -189,6 +191,7 @@ class _HomeScreenState extends State<HomeScreen>
         try {
           _mapController.move(ll.LatLng(lastKnown.latitude, lastKnown.longitude), 15.0);
         } catch (_) {}
+        _precacheLocalArea(lastKnown.latitude, lastKnown.longitude);
       }
 
       // 2. Fresh high-precision GPS position
@@ -203,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen>
         try {
           _mapController.move(ll.LatLng(position.latitude, position.longitude), 15.0);
         } catch (_) {}
+        _precacheLocalArea(position.latitude, position.longitude);
       }
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -221,6 +225,73 @@ class _HomeScreenState extends State<HomeScreen>
         ]);
       }
     } catch (_) {}
+  }
+
+  void _precacheLocalArea(double lat, double lng, {bool showFeedback = false}) async {
+    if (_isPrecachingMap) return;
+    _isPrecachingMap = true;
+
+    if (showFeedback && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AstraTheme.cardSurface,
+          behavior: SnackBarBehavior.floating,
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA594F9)),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Saving 30-50 km local area for offline use...',
+                  style: TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+
+    try {
+      await MapCacheService.precacheArea(
+        latitude: lat,
+        longitude: lng,
+        radiusKm: 35.0,
+        urlTemplate: 'https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}{r}.jpg?key=$_mapTilerKey',
+        styleKey: _currentMapStyle.name,
+        zoomLevels: const [13, 14, 15],
+      );
+
+      if (showFeedback && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AstraTheme.cardSurface,
+            behavior: SnackBarBehavior.floating,
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 18),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Local 35 km map area cached! Instant loading enabled.',
+                    style: TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (_) {
+    } finally {
+      _isPrecachingMap = false;
+    }
   }
 
   void _openContactsModal() {
@@ -663,6 +734,71 @@ class _HomeScreenState extends State<HomeScreen>
                       ],
                     ),
                     const SizedBox(height: 14),
+
+                    // Offline Area Cache Action Bar
+                    _GlassContainer(
+                      borderRadius: 16,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFA594F9).withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.download_for_offline_rounded, color: Color(0xFFA594F9), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '30-50 km Local Offline Cache',
+                                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Permanently saved on disk for instant 0ms load',
+                                  style: TextStyle(color: AstraTheme.textSecondary, fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              if (_currentPosition != null) {
+                                _precacheLocalArea(
+                                  _currentPosition!.latitude,
+                                  _currentPosition!.longitude,
+                                  showFeedback: true,
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    backgroundColor: AstraTheme.cardSurface,
+                                    behavior: SnackBarBehavior.floating,
+                                    content: Text('Waiting for GPS position...', style: TextStyle(color: Colors.white)),
+                                  ),
+                                );
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: const Color(0xFFA594F9).withValues(alpha: 0.25),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                            child: const Text(
+                              'Cache Area',
+                              style: TextStyle(color: Color(0xFFA594F9), fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     ...options.map((opt) {
                       final style = opt['style'] as AstraMapStyle;
                       final isSelected = _currentMapStyle == style;
@@ -761,6 +897,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: TileLayer(
             urlTemplate: 'https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}{r}.jpg?key=$_mapTilerKey',
             userAgentPackageName: 'com.croto.astra',
+            tileProvider: CachedTileProvider(styleKey: 'nocturne'),
             retinaMode: true,
             maxZoom: 22,
             maxNativeZoom: 20,
@@ -770,6 +907,7 @@ class _HomeScreenState extends State<HomeScreen>
         return TileLayer(
           urlTemplate: 'https://api.maptiler.com/maps/streets-v2-dark/{z}/{x}/{y}{r}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
+          tileProvider: CachedTileProvider(styleKey: 'darkMatter'),
           retinaMode: true,
           maxZoom: 22,
           maxNativeZoom: 20,
@@ -778,6 +916,7 @@ class _HomeScreenState extends State<HomeScreen>
         return TileLayer(
           urlTemplate: 'https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}{r}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
+          tileProvider: CachedTileProvider(styleKey: 'midnightBlue'),
           retinaMode: true,
           maxZoom: 22,
           maxNativeZoom: 20,
@@ -793,6 +932,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: TileLayer(
             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             userAgentPackageName: 'com.croto.astra',
+            tileProvider: CachedTileProvider(styleKey: 'pureOled'),
             retinaMode: true,
             maxZoom: 22,
             maxNativeZoom: 19,
@@ -802,6 +942,7 @@ class _HomeScreenState extends State<HomeScreen>
         return TileLayer(
           urlTemplate: 'https://api.maptiler.com/maps/satellite/{z}/{x}/{y}{r}.jpg?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
+          tileProvider: CachedTileProvider(styleKey: 'satellite'),
           retinaMode: true,
           maxZoom: 22,
           maxNativeZoom: 20,
@@ -810,6 +951,7 @@ class _HomeScreenState extends State<HomeScreen>
         return TileLayer(
           urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}{r}.png?key=$_mapTilerKey',
           userAgentPackageName: 'com.croto.astra',
+          tileProvider: CachedTileProvider(styleKey: 'voyager'),
           retinaMode: true,
           maxZoom: 22,
           maxNativeZoom: 20,
