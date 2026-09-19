@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/r2_storage_service.dart';
 import '../../core/theme/astra_theme.dart';
+import '../auth/phone_auth_screen.dart';
 
 class ProfileSettingsModal extends StatefulWidget {
   final String initialName;
@@ -137,6 +138,53 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
     }
   }
 
+  Future<void> _handleSignOut() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AstraTheme.cardSurface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: AstraTheme.borderSubtle),
+        ),
+        title: const Text('Log Out', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to log out of Astra?', style: TextStyle(color: AstraTheme.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AstraTheme.textMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await AuthService.signOut();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const PhoneAuthScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error logging out: $e'), backgroundColor: Colors.redAccent),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -173,24 +221,30 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
               const SizedBox(height: 18),
               const Center(
                 child: Text(
-                  'Edit Profile & Status',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  'Profile Settings',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Avatar with Edit Button
+              // Avatar with camera icon
               Center(
                 child: Stack(
                   children: [
                     CircleAvatar(
-                      radius: 44,
-                      backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
-                      backgroundImage: _photoUrl != null ? NetworkImage(_photoUrl!) : null,
-                      child: _photoUrl == null
+                      radius: 46,
+                      backgroundColor: AstraTheme.primary.withValues(alpha: 0.2),
+                      backgroundImage: _photoUrl != null && _photoUrl!.isNotEmpty
+                          ? NetworkImage(_photoUrl!)
+                          : null,
+                      child: _photoUrl == null || _photoUrl!.isEmpty
                           ? Text(
-                              _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : 'U',
-                              style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                              widget.initialName.isNotEmpty ? widget.initialName[0].toUpperCase() : 'U',
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
                             )
                           : null,
                     ),
@@ -298,6 +352,22 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
                   child: _isSaving
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                       : const Text('Save Changes', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Log Out Button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _handleSignOut,
+                  icon: const Icon(Icons.logout, color: Colors.redAccent, size: 18),
+                  label: const Text('Log Out', style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.4)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
                 ),
               ),
             ],
