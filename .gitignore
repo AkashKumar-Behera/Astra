@@ -67,6 +67,3 @@ functions/node_modules/
 *.key
 *.pem
 ssh-key-*.key
-
-# Functions directory
-functions/
