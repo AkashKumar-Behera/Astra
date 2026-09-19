@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/services/auth_service.dart';
 import '../../core/services/update_service.dart';
-import '../../core/theme/astra_theme.dart';
 import '../auth/phone_auth_screen.dart';
 import '../auth/profile_setup_screen.dart';
 import '../home/home_screen.dart';
@@ -98,100 +97,288 @@ class _SplashScreenState extends State<SplashScreen>
     showDialog(
       context: context,
       barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: AstraTheme.cardSurface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: AstraTheme.primary.withValues(alpha: 0.5)),
-          ),
-          title: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AstraTheme.primary.withValues(alpha: 0.2),
-                ),
-                child: const Icon(Icons.system_update,
-                    color: AstraTheme.primaryLight, size: 20),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'New Update Available',
-                style: TextStyle(
-                  color: AstraTheme.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'A new version (v${updateInfo.latestVersion}) is ready. Current version is v${updateInfo.currentVersion}.',
-                style: const TextStyle(
-                  color: AstraTheme.textSecondary,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (updateInfo.releaseNotes != null &&
-                  updateInfo.releaseNotes!.isNotEmpty)
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 120),
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AstraTheme.background.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AstraTheme.borderSubtle),
+                  color: const Color(0xFF0D0B24).withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    width: 1.2,
                   ),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      updateInfo.releaseNotes!,
-                      style: const TextStyle(
-                        color: AstraTheme.textMuted,
-                        fontSize: 12,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFA594F9).withValues(alpha: 0.20),
+                      blurRadius: 36,
+                      spreadRadius: 2,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.75),
+                      blurRadius: 30,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Glowing Rocket Badge Orb
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4F46E5), Color(0xFFA594F9)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFA594F9).withValues(alpha: 0.45),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.rocket_launch_rounded,
+                          color: Colors.white,
+                          size: 30,
+                        ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _proceedToApp();
-              },
-              child: const Text('Later',
-                  style: TextStyle(color: AstraTheme.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final urlStr = updateInfo.apkDownloadUrl ??
-                    updateInfo.releasePageUrl ??
-                    'https://github.com/AkashKumar-Behera/Astra/releases';
-                final url = Uri.parse(urlStr);
-                if (await canLaunchUrl(url)) {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AstraTheme.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 18),
+
+                    // Title
+                    const Text(
+                      'New Update Available',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Version Comparison Badge Pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1B4B).withValues(alpha: 0.60),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFA594F9).withValues(alpha: 0.30),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'v${updateInfo.currentVersion}',
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 8),
+                            child: Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFFA594F9)),
+                          ),
+                          Text(
+                            'v${updateInfo.latestVersion}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.6), width: 0.8),
+                            ),
+                            child: Text(
+                              updateInfo.isBeta ? 'BETA' : 'NEW',
+                              style: const TextStyle(
+                                color: Color(0xFF34D399),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Release Notes / What's New Box
+                    if (updateInfo.releaseNotes != null && updateInfo.releaseNotes!.trim().isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        constraints: const BoxConstraints(maxHeight: 140),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF13112E).withValues(alpha: 0.70),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.auto_awesome, size: 14, color: Color(0xFFA594F9)),
+                                SizedBox(width: 6),
+                                Text(
+                                  'What\'s New',
+                                  style: TextStyle(
+                                    color: Color(0xFFA594F9),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Flexible(
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  updateInfo.releaseNotes!.trim(),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    height: 1.45,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ] else ...[
+                      const Text(
+                        'A new update is ready with performance improvements, bug fixes, and new features.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+
+                    // Action buttons
+                    // 1. Update Now Gradient Button
+                    Container(
+                      width: double.infinity,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF6366F1), Color(0xFFA594F9)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFA594F9).withValues(alpha: 0.40),
+                            blurRadius: 18,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () async {
+                            final urlStr = updateInfo.apkDownloadUrl ??
+                                updateInfo.releasePageUrl ??
+                                'https://github.com/AkashKumar-Behera/Astra/releases';
+                            final url = Uri.parse(urlStr);
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                            }
+                          },
+                          child: const Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.download_rounded, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Update Now',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 2. Later Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _proceedToApp();
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text(
+                          'Maybe Later',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: const Text('Update Now',
-                  style: TextStyle(color: Colors.white)),
             ),
-          ],
+          ),
         );
       },
     );
