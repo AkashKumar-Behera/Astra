@@ -60,5 +60,7 @@ env.json
 *.keystore
 *.jks
 android/key.properties
+node_modules/
+functions/node_modules/
 
 

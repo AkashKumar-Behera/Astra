@@ -13,7 +13,7 @@ class PhoneAuthScreen extends StatefulWidget {
 class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
-  String _selectedCountryCode = '+91';
+  final String _selectedCountryCode = '+91';
 
   @override
   void dispose() {
