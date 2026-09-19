@@ -48,7 +48,6 @@ class TelemetryService {
       await _rtdb.ref('telemetry/$uid').update({
         'battery': batteryLevel,
         'network': networkType,
-        'isOnline': networkType != 'none',
         'lastActive': ServerValue.timestamp,
       });
     } catch (_) {}

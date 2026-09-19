@@ -103,6 +103,11 @@ class ChatService {
     required String recipientUid,
     required String text,
     MessageType type = MessageType.text,
+    String? replyToId,
+    String? replyToText,
+    String? replyToSender,
+    String? mediaUrl,
+    int? audioDurationSec,
   }) async {
     final senderUid = currentUserId;
     if (senderUid == null || senderUid.isEmpty) {
@@ -154,6 +159,11 @@ class ChatService {
       timestamp: timestamp,
       keyVersion: keyVersion,
       status: MessageStatus.sent,
+      replyToId: replyToId,
+      replyToText: replyToText,
+      replyToSender: replyToSender,
+      mediaUrl: mediaUrl,
+      audioDurationSec: audioDurationSec,
       decryptedText: text, // in-memory only
     );
 

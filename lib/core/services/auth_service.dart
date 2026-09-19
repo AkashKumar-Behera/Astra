@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'location_rtdb_service.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -67,18 +68,18 @@ class AuthService {
     }
   }
 
-  /// Updates current user's live coordinates in Firestore
+  /// Updates current user's live coordinates in RTDB (zero Firestore billing/overhead)
   static Future<void> updateUserLocation({
     required String uid,
     required double latitude,
     required double longitude,
   }) async {
     try {
-      await _firestore.collection('users').doc(uid).update({
-        'latitude': latitude,
-        'longitude': longitude,
-        'lastLocationUpdate': FieldValue.serverTimestamp(),
-      });
+      await LocationRtdbService.updateLocation(
+        uid: uid,
+        latitude: latitude,
+        longitude: longitude,
+      );
     } catch (_) {}
   }
 

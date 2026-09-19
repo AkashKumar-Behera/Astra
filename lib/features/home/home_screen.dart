@@ -15,10 +15,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/services/location_rtdb_service.dart';
 import '../../core/services/telemetry_service.dart';
+import '../../core/services/presence_service.dart';
+import '../../core/services/webrtc_call_service.dart';
 import '../../core/services/map_cache_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
-import '../settings/profile_settings_modal.dart';
+import '../calls/incoming_call_screen.dart';
+import '../profile/partner_profile_screen.dart';
+import '../settings/settings_screen.dart';
 
 enum AstraMapStyle {
   nocturne,
@@ -47,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   Position? _currentPosition;
   StreamSubscription<Position>? _positionStreamSub;
+  StreamSubscription? _incomingCallSub;
   late AnimationController _pulseController;
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
@@ -68,8 +73,35 @@ class _HomeScreenState extends State<HomeScreen>
 
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
+      PresenceService.instance.init(uid);
       TelemetryService.startTelemetrySync(uid);
       LocationRtdbService.startLocationRequestListener(uid);
+
+      _incomingCallSub = WebRtcCallService.listenToIncomingCalls(uid).listen((callData) {
+        if (callData != null && mounted) {
+          final callId = callData['callId'] as String? ?? '';
+          final callerUid = callData['callerUid'] as String? ?? '';
+          final callerName = callData['callerName'] as String? ?? 'Partner';
+          final callerPhoto = callData['callerPhoto'] as String?;
+          final typeStr = callData['type'] as String? ?? 'audio';
+          final type = typeStr == 'video' ? CallType.video : CallType.audio;
+
+          if (WebRtcCallService.instance.status == CallStatus.idle) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => IncomingCallScreen(
+                  callId: callId,
+                  callerUid: callerUid,
+                  callerName: callerName,
+                  callerPhoto: callerPhoto,
+                  type: type,
+                  myUid: uid,
+                ),
+              ),
+            );
+          }
+        }
+      });
     }
   }
 
@@ -98,8 +130,10 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _positionStreamSub?.cancel();
+    _incomingCallSub?.cancel();
     LocationRtdbService.disposeLocationRequestListener();
     TelemetryService.dispose();
+    PresenceService.instance.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -235,18 +269,11 @@ class _HomeScreenState extends State<HomeScreen>
 
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
-        await Future.wait([
-          AuthService.updateUserLocation(
-            uid: uid,
-            latitude: position.latitude,
-            longitude: position.longitude,
-          ),
-          LocationRtdbService.updateLocation(
-            uid: uid,
-            latitude: position.latitude,
-            longitude: position.longitude,
-          ),
-        ]);
+        await LocationRtdbService.updateLocation(
+          uid: uid,
+          latitude: position.latitude,
+          longitude: position.longitude,
+        );
       }
     } catch (_) {}
   }
@@ -327,15 +354,17 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _openSettingsModal(String myPhone) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ProfileSettingsModal(
-        initialName: widget.userName,
-        initialPhotoUrl: widget.photoUrl,
-        myPhone: myPhone,
+  void _openSettingsModal(String myPhone, {String? partnerUid, String? partnerName}) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          userName: widget.userName,
+          photoUrl: widget.photoUrl,
+          myPhone: myPhone,
+          partnerUid: partnerUid,
+          partnerName: partnerName,
+        ),
       ),
     );
   }
@@ -529,7 +558,10 @@ class _HomeScreenState extends State<HomeScreen>
                               padding: EdgeInsets.zero,
                               child: IconButton(
                                 icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
-                                onPressed: () => _openSettingsModal(myPhone),
+                                onPressed: () => _openSettingsModal(
+                                  myPhone,
+                                  partnerUid: connectionUids.isNotEmpty ? connectionUids.first : null,
+                                ),
                               ),
                             ),
                           ],
@@ -1573,21 +1605,25 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ],
               ),
-          child: StreamBuilder<DatabaseEvent>(
-            stream: TelemetryService.streamPartnerTelemetry(pUid),
-            builder: (context, teleSnap) {
-              int battery = 85;
-              String network = 'wifi';
-              bool isOnline = true;
+          child: StreamBuilder<PartnerPresence>(
+            stream: PresenceService.streamPartnerPresence(pUid),
+            builder: (context, presenceSnap) {
+              final isOnline = presenceSnap.data?.isOnline ?? false;
+              final presenceText = presenceSnap.data?.statusText ?? 'Offline';
 
-              if (teleSnap.hasData && teleSnap.data!.snapshot.value != null) {
-                try {
-                  final val = Map<dynamic, dynamic>.from(teleSnap.data!.snapshot.value as Map);
-                  battery = (val['battery'] as num?)?.toInt() ?? battery;
-                  network = (val['network'] as String?) ?? network;
-                  isOnline = (val['isOnline'] as bool?) ?? isOnline;
-                } catch (_) {}
-              }
+              return StreamBuilder<DatabaseEvent>(
+                stream: TelemetryService.streamPartnerTelemetry(pUid),
+                builder: (context, teleSnap) {
+                  int battery = 85;
+                  String network = 'wifi';
+
+                  if (teleSnap.hasData && teleSnap.data!.snapshot.value != null) {
+                    try {
+                      final val = Map<dynamic, dynamic>.from(teleSnap.data!.snapshot.value as Map);
+                      battery = (val['battery'] as num?)?.toInt() ?? battery;
+                      network = (val['network'] as String?) ?? network;
+                    } catch (_) {}
+                  }
 
               return ListView(
                 controller: scrollController,
@@ -1646,12 +1682,23 @@ class _HomeScreenState extends State<HomeScreen>
                   ],
 
                   // Profile Header Row (Screen4.png match)
-                  GestureDetector(
-                    onTap: () => _openChat(activePartner, isOnline),
-                    child: Row(
-                      children: [
-                        // Avatar with glowing ring
-                        CircleAvatar(
+                  Row(
+                    children: [
+                      // Avatar with glowing ring -> opens Partner Profile
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PartnerProfileScreen(
+                                partnerUid: pUid,
+                                partnerName: pName,
+                                partnerPhoto: pPhoto,
+                              ),
+                            ),
+                          );
+                        },
+                        child: CircleAvatar(
                           radius: 28,
                           backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
                           backgroundImage: pPhoto != null ? NetworkImage(pPhoto) : null,
@@ -1662,10 +1709,13 @@ class _HomeScreenState extends State<HomeScreen>
                                 )
                               : null,
                         ),
-                        const SizedBox(width: 14),
+                      ),
+                      const SizedBox(width: 14),
 
-                        // Partner Name & Telemetry Row
-                        Expanded(
+                      // Partner Name & Telemetry Row -> opens Chat
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _openChat(activePartner, isOnline),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1688,7 +1738,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    isOnline ? 'Online • Just now' : 'Offline',
+                                    isOnline ? 'Online • Just now' : presenceText,
                                     style: TextStyle(
                                       color: isOnline ? AstraTheme.accentOnline : AstraTheme.textSecondary,
                                       fontSize: 12,
@@ -1721,18 +1771,18 @@ class _HomeScreenState extends State<HomeScreen>
                             ],
                           ),
                         ),
+                      ),
 
-                        // Right Arrow to Chat
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+                      // Right Arrow to Chat
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.05),
+                          shape: BoxShape.circle,
                         ),
-                      ],
-                    ),
+                        child: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white70),
+                      ),
+                    ],
                   ),
 
                   // Real-time RTDB Partner Location Stream & Refresh Tile
@@ -1953,7 +2003,9 @@ class _HomeScreenState extends State<HomeScreen>
                 ],
               );
             },
-          ),
+          );
+        },
+      ),
         ),
       ),
     );

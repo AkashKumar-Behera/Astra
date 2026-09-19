@@ -30,6 +30,15 @@ class ChatMessageModel {
   final int keyVersion;
   final MessageStatus status;
 
+  // Reply metadata
+  final String? replyToId;
+  final String? replyToText;
+  final String? replyToSender;
+
+  // Media metadata (e.g. voice note duration, image/audio URL)
+  final String? mediaUrl;
+  final int? audioDurationSec;
+
   // Transient / in-memory decrypted content (NEVER stored in Firestore)
   final String? decryptedText;
 
@@ -47,6 +56,11 @@ class ChatMessageModel {
     required this.timestamp,
     this.keyVersion = 1,
     this.status = MessageStatus.sent,
+    this.replyToId,
+    this.replyToText,
+    this.replyToSender,
+    this.mediaUrl,
+    this.audioDurationSec,
     this.decryptedText,
     this.decryptionError,
   });
@@ -64,6 +78,11 @@ class ChatMessageModel {
         'timestamp': timestamp,
         'keyVersion': keyVersion,
         'status': status.name,
+        if (replyToId != null) 'replyToId': replyToId,
+        if (replyToText != null) 'replyToText': replyToText,
+        if (replyToSender != null) 'replyToSender': replyToSender,
+        if (mediaUrl != null) 'mediaUrl': mediaUrl,
+        if (audioDurationSec != null) 'audioDurationSec': audioDurationSec,
       };
 
   factory ChatMessageModel.fromFirestore(
@@ -88,6 +107,11 @@ class ChatMessageModel {
         (s) => s.name == (data['status'] as String?),
         orElse: () => MessageStatus.sent,
       ),
+      replyToId: data['replyToId'] as String?,
+      replyToText: data['replyToText'] as String?,
+      replyToSender: data['replyToSender'] as String?,
+      mediaUrl: data['mediaUrl'] as String?,
+      audioDurationSec: (data['audioDurationSec'] as num?)?.toInt(),
       decryptedText: decryptedContent,
       decryptionError: decryptionError,
     );
@@ -104,6 +128,11 @@ class ChatMessageModel {
     int? timestamp,
     int? keyVersion,
     MessageStatus? status,
+    String? replyToId,
+    String? replyToText,
+    String? replyToSender,
+    String? mediaUrl,
+    int? audioDurationSec,
     String? decryptedText,
     String? decryptionError,
   }) {
@@ -118,6 +147,11 @@ class ChatMessageModel {
       timestamp: timestamp ?? this.timestamp,
       keyVersion: keyVersion ?? this.keyVersion,
       status: status ?? this.status,
+      replyToId: replyToId ?? this.replyToId,
+      replyToText: replyToText ?? this.replyToText,
+      replyToSender: replyToSender ?? this.replyToSender,
+      mediaUrl: mediaUrl ?? this.mediaUrl,
+      audioDurationSec: audioDurationSec ?? this.audioDurationSec,
       decryptedText: decryptedText ?? this.decryptedText,
       decryptionError: decryptionError ?? this.decryptionError,
     );
