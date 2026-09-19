@@ -63,4 +63,10 @@ android/key.properties
 node_modules/
 functions/node_modules/
 
+# Private SSH Keys & sensitive certificates
+*.key
+*.pem
+ssh-key-*.key
 
+# Functions directory
+functions/
