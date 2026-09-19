@@ -45,6 +45,7 @@ class _HomeScreenState extends State<HomeScreen>
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
   AstraMapStyle _currentMapStyle = AstraMapStyle.darkMatter;
+  bool _isRefreshingLocation = false;
 
   @override
   void initState() {
@@ -60,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen>
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       TelemetryService.startTelemetrySync(uid);
+      LocationRtdbService.startLocationRequestListener(uid);
     }
   }
 
@@ -87,9 +89,80 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    LocationRtdbService.disposeLocationRequestListener();
     TelemetryService.dispose();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshPartnerLocation(String partnerUid, String partnerName) async {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    if (myUid == null || _isRefreshingLocation) return;
+
+    setState(() => _isRefreshingLocation = true);
+
+    try {
+      final result = await LocationRtdbService.refreshPartnerLocation(
+        partnerUid: partnerUid,
+        myUid: myUid,
+        timeout: const Duration(seconds: 10),
+      );
+
+      if (!mounted) return;
+
+      if (result.isSuccess && result.latitude != null && result.longitude != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AstraTheme.cardSurface,
+            behavior: SnackBarBehavior.floating,
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.greenAccent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$partnerName\'s location refreshed (${result.statusLabel})',
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        _mapController.move(
+          ll.LatLng(result.latitude!, result.longitude!),
+          14.5,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AstraTheme.cardSurface,
+            behavior: SnackBarBehavior.floating,
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.amberAccent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    result.updatedAt != null
+                        ? '$partnerName is unavailable. Showing ${result.statusLabel}'
+                        : '$partnerName\'s location could not be refreshed.',
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshingLocation = false);
+      }
+    }
   }
 
   Future<void> _initLocation() async {
@@ -356,12 +429,39 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // 3. MAP RE-CENTER / ZOOM / MAP STYLES BUTTONS
+              // 3. MAP RE-CENTER / REFRESH / ZOOM / MAP STYLES BUTTONS
               Positioned(
                 right: 16,
                 bottom: MediaQuery.of(context).size.height * 0.38,
                 child: Column(
                   children: [
+                    FloatingActionButton.small(
+                      heroTag: 'refresh_loc_btn',
+                      backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
+                      foregroundColor: _isRefreshingLocation ? AstraTheme.primaryLight : AstraTheme.accentCyan,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: const BorderSide(color: AstraTheme.borderSubtle),
+                      ),
+                      onPressed: _isRefreshingLocation || connectionUids.isEmpty
+                          ? null
+                          : () {
+                              final partnerIndex = _selectedPartnerIndex < connectionUids.length ? _selectedPartnerIndex : 0;
+                              final partnerUid = connectionUids[partnerIndex];
+                              _refreshPartnerLocation(partnerUid, 'Friend');
+                            },
+                      child: _isRefreshingLocation
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AstraTheme.accentCyan,
+                              ),
+                            )
+                          : const Icon(Icons.refresh_rounded, size: 20),
+                    ),
+                    const SizedBox(height: 10),
                     FloatingActionButton.small(
                       heroTag: 'recenter_btn',
                       backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
@@ -946,7 +1046,6 @@ class _HomeScreenState extends State<HomeScreen>
     final pName = (activePartner['name'] as String?) ?? 'Partner';
     final pPhoto = activePartner['photoUrl'] as String?;
     final pPhone = (activePartner['phoneNumber'] as String?) ?? '';
-    final pStatus = (activePartner['status'] as String?) ?? 'Online';
 
     return DraggableScrollableSheet(
       initialChildSize: 0.36,
@@ -1111,23 +1210,6 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                 ],
                               ),
-
-                              const SizedBox(height: 4),
-                              // Location updated line
-                              Row(
-                                children: [
-                                  const Icon(Icons.location_on, size: 12, color: AstraTheme.accentCyan),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      pStatus,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
-                                    ),
-                                  ),
-                                ],
-                              ),
                             ],
                           ),
                         ),
@@ -1145,7 +1227,105 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  // Real-time RTDB Partner Location Stream & Refresh Tile
+                  StreamBuilder<DatabaseEvent>(
+                    stream: LocationRtdbService.streamPartnerLocation(pUid),
+                    builder: (context, locSnap) {
+                      int? updatedAt;
+                      if (locSnap.hasData && locSnap.data!.snapshot.value != null) {
+                        try {
+                          final locMap = Map<dynamic, dynamic>.from(locSnap.data!.snapshot.value as Map);
+                          updatedAt = (locMap['updatedAt'] as num?)?.toInt();
+                        } catch (_) {}
+                      }
+
+                      final isFresh = LocationRtdbService.isLocationFresh(updatedAt);
+                      final freshnessLabel = LocationRtdbService.formatLocationFreshness(updatedAt);
+
+                      return Container(
+                        margin: const EdgeInsets.only(top: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isFresh
+                                ? Colors.greenAccent.withValues(alpha: 0.3)
+                                : AstraTheme.borderSubtle,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: (isFresh ? Colors.greenAccent : Colors.amberAccent).withValues(alpha: 0.15),
+                              ),
+                              child: Icon(
+                                isFresh ? Icons.my_location_rounded : Icons.location_history_rounded,
+                                color: isFresh ? Colors.greenAccent : Colors.amberAccent,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        isFresh ? '🟢 Live' : '🟡 Last Known',
+                                        style: TextStyle(
+                                          color: isFresh ? Colors.greenAccent : Colors.amberAccent,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isFresh ? 'Radar Active' : 'Location Stored',
+                                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    freshnessLabel,
+                                    style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: _isRefreshingLocation ? null : () => _refreshPartnerLocation(pUid, pName),
+                              icon: _isRefreshingLocation
+                                  ? const SizedBox(
+                                      width: 12,
+                                      height: 12,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.refresh_rounded, size: 14),
+                              label: Text(
+                                _isRefreshingLocation ? 'Pinging...' : 'Refresh',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AstraTheme.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 18),
 
                   // Action Buttons Row: Call, Video, Direct Chat (Screen4.png match)
                   Row(

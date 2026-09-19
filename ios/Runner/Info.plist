@@ -30,6 +30,11 @@
 	<string>Astra needs location access to keep distance and presence updated for your connected partner.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Astra uses your contacts to find friends who are already using the app and allow you to invite others.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

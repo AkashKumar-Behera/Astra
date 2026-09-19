@@ -1,1 +1,34 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"astra-closer","appId":"1:484080421572:android:c4b667a697286dd8055791","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"astra-closer","configurations":{"android":"1:484080421572:android:c4b667a697286dd8055791","ios":"1:484080421572:ios:f06661467a827d4f055791"}}}}}}
+{
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "astra-closer",
+          "appId": "1:484080421572:android:c4b667a697286dd8055791",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "astra-closer",
+          "configurations": {
+            "android": "1:484080421572:android:c4b667a697286dd8055791",
+            "ios": "1:484080421572:ios:f06661467a827d4f055791"
+          }
+        }
+      }
+    }
+  }
+}
