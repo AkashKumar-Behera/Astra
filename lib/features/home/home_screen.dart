@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -360,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // 2. TOP FLOATING APP BAR (Header matching Screen4)
+              // 2. TOP FLOATING APP BAR (Glassmorphic)
               Positioned(
                 top: 0,
                 left: 0,
@@ -371,20 +372,10 @@ class _HomeScreenState extends State<HomeScreen>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Left Astra Pill
-                        Container(
+                        // Left Astra Pill (Frosted Glass)
+                        _GlassContainer(
+                          borderRadius: 24,
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AstraTheme.cardSurface.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: AstraTheme.borderSubtle),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -392,7 +383,8 @@ class _HomeScreenState extends State<HomeScreen>
                                 'assets/images/Astra.png',
                                 width: 22,
                                 height: 22,
-                                errorBuilder: (ctx, error, stackTrace) => const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 20),
+                                errorBuilder: (ctx, error, stackTrace) =>
+                                    const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 20),
                               ),
                               const SizedBox(width: 8),
                               const Text(
@@ -408,29 +400,23 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ),
 
-                        // Right Actions: Add Contact & Settings Icon
+                        // Right Actions: Add Contact & Settings Icon (Frosted Glass)
                         Row(
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AstraTheme.cardSurface.withValues(alpha: 0.85),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AstraTheme.borderSubtle),
-                              ),
+                            _GlassContainer(
+                              borderRadius: 22,
+                              padding: EdgeInsets.zero,
                               child: IconButton(
-                                icon: const Icon(Icons.person_add_alt_1, color: Colors.white70, size: 20),
+                                icon: const Icon(Icons.person_add_alt_1, color: Colors.white, size: 20),
                                 onPressed: _openContactsModal,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: AstraTheme.cardSurface.withValues(alpha: 0.85),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AstraTheme.borderSubtle),
-                              ),
+                            const SizedBox(width: 10),
+                            _GlassContainer(
+                              borderRadius: 22,
+                              padding: EdgeInsets.zero,
                               child: IconButton(
-                                icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 20),
+                                icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
                                 onPressed: () => _openSettingsModal(myPhone),
                               ),
                             ),
@@ -442,68 +428,79 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
 
-              // 3. MAP RE-CENTER / REFRESH / ZOOM / MAP STYLES BUTTONS
+              // 3. MAP RE-CENTER / REFRESH / ZOOM / MAP STYLES BUTTONS (Glassmorphic)
               Positioned(
                 right: 16,
                 bottom: MediaQuery.of(context).size.height * 0.38,
                 child: Column(
                   children: [
-                    FloatingActionButton.small(
-                      heroTag: 'refresh_loc_btn',
-                      backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                      foregroundColor: _isRefreshingLocation ? AstraTheme.primaryLight : AstraTheme.accentCyan,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: AstraTheme.borderSubtle),
+                    // Refresh Button
+                    _GlassContainer(
+                      borderRadius: 16,
+                      padding: const EdgeInsets.all(4),
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: _isRefreshingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AstraTheme.accentCyan,
+                                  ),
+                                )
+                              : const Icon(Icons.refresh_rounded, color: AstraTheme.accentCyan, size: 22),
+                          onPressed: _isRefreshingLocation || connectionUids.isEmpty
+                              ? null
+                              : () {
+                                  final partnerIndex = _selectedPartnerIndex < connectionUids.length ? _selectedPartnerIndex : 0;
+                                  final partnerUid = connectionUids[partnerIndex];
+                                  _refreshPartnerLocation(partnerUid, 'Friend');
+                                },
+                        ),
                       ),
-                      onPressed: _isRefreshingLocation || connectionUids.isEmpty
-                          ? null
-                          : () {
-                              final partnerIndex = _selectedPartnerIndex < connectionUids.length ? _selectedPartnerIndex : 0;
-                              final partnerUid = connectionUids[partnerIndex];
-                              _refreshPartnerLocation(partnerUid, 'Friend');
-                            },
-                      child: _isRefreshingLocation
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AstraTheme.accentCyan,
-                              ),
-                            )
-                          : const Icon(Icons.refresh_rounded, size: 20),
                     ),
-                    const SizedBox(height: 10),
-                    FloatingActionButton.small(
-                      heroTag: 'recenter_btn',
-                      backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                      foregroundColor: AstraTheme.accentCyan,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: AstraTheme.borderSubtle),
+                    const SizedBox(height: 12),
+
+                    // Recenter GPS Button
+                    _GlassContainer(
+                      borderRadius: 16,
+                      padding: const EdgeInsets.all(4),
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.navigation_rounded, color: AstraTheme.accentCyan, size: 22),
+                          onPressed: () {
+                            if (_currentPosition != null) {
+                              _mapController.move(
+                                ll.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                                15.0,
+                              );
+                            }
+                          },
+                        ),
                       ),
-                      onPressed: () {
-                        if (_currentPosition != null) {
-                          _mapController.move(
-                            ll.LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
-                            14.0,
-                          );
-                        }
-                      },
-                      child: const Icon(Icons.navigation_outlined, size: 20),
                     ),
-                    const SizedBox(height: 10),
-                    FloatingActionButton.small(
-                      heroTag: 'layers_btn',
-                      backgroundColor: AstraTheme.cardSurface.withValues(alpha: 0.9),
-                      foregroundColor: AstraTheme.accentCyan,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: const BorderSide(color: AstraTheme.borderSubtle),
+                    const SizedBox(height: 12),
+
+                    // Layers Theme Button
+                    _GlassContainer(
+                      borderRadius: 16,
+                      padding: const EdgeInsets.all(4),
+                      child: SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.layers_rounded, color: AstraTheme.accentCyan, size: 22),
+                          onPressed: _openMapStyleModal,
+                        ),
                       ),
-                      onPressed: _openMapStyleModal,
-                      child: const Icon(Icons.layers_rounded, size: 20),
                     ),
                   ],
                 ),
@@ -580,93 +577,93 @@ class _HomeScreenState extends State<HomeScreen>
             },
           ];
 
-          return Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-            decoration: BoxDecoration(
-              color: AstraTheme.cardSurface.withValues(alpha: 0.98),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-              border: Border.all(color: AstraTheme.borderSubtle),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
-                  blurRadius: 30,
-                  spreadRadius: 8,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 18),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+          return ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0C0B20).withValues(alpha: 0.85),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
+                    left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+                    right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
                   ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.layers_rounded, color: AstraTheme.accentCyan, size: 22),
-                        SizedBox(width: 10),
-                        Text(
-                          'Map Style & Themes',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white60, size: 20),
-                      onPressed: () => Navigator.pop(ctx),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 30,
+                      offset: const Offset(0, -8),
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                ...options.map((opt) {
-                  final style = opt['style'] as AstraMapStyle;
-                  final isSelected = _currentMapStyle == style;
-                  final title = opt['title'] as String;
-                  final subtitle = opt['subtitle'] as String;
-                  final icon = opt['icon'] as IconData;
-                  final gradient = opt['gradient'] as List<Color>;
-                  final accent = opt['accent'] as Color;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        _setMapStyle(style);
-                        setModalState(() {});
-                        Navigator.pop(ctx);
-                      },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
                       child: Container(
-                        padding: const EdgeInsets.all(14),
+                        width: 44,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 18),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: isSelected
-                                ? [gradient[0].withValues(alpha: 0.9), gradient[1].withValues(alpha: 0.9)]
-                                : [AstraTheme.cardSurface.withValues(alpha: 0.6), AstraTheme.cardSurface.withValues(alpha: 0.4)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isSelected ? AstraTheme.accentCyan : AstraTheme.borderSubtle,
-                            width: isSelected ? 1.8 : 1.0,
-                          ),
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
                         ),
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.layers_rounded, color: AstraTheme.accentCyan, size: 22),
+                            SizedBox(width: 10),
+                            Text(
+                              'Map Style & Themes',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white60, size: 20),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    ...options.map((opt) {
+                      final style = opt['style'] as AstraMapStyle;
+                      final isSelected = _currentMapStyle == style;
+                      final title = opt['title'] as String;
+                      final subtitle = opt['subtitle'] as String;
+                      final icon = opt['icon'] as IconData;
+                      final gradient = opt['gradient'] as List<Color>;
+                      final accent = opt['accent'] as Color;
+
+                      return _GlassContainer(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        borderRadius: 18,
+                        blur: 14,
+                        color: isSelected
+                            ? gradient[0].withValues(alpha: 0.50)
+                            : Colors.white.withValues(alpha: 0.05),
+                        border: Border.all(
+                          color: isSelected ? AstraTheme.accentCyan : Colors.white.withValues(alpha: 0.10),
+                          width: isSelected ? 1.6 : 1.0,
+                        ),
+                        onTap: () {
+                          _setMapStyle(style);
+                          setModalState(() {});
+                          Navigator.pop(ctx);
+                        },
                         child: Row(
                           children: [
                             Container(
@@ -709,11 +706,11 @@ class _HomeScreenState extends State<HomeScreen>
                               const Icon(Icons.radio_button_unchecked, color: Colors.white24, size: 22),
                           ],
                         ),
-                      ),
-                    ),
-                  );
-                }),
-              ],
+                      );
+                    }),
+                  ],
+                ),
+              ),
             ),
           );
         },
@@ -987,58 +984,105 @@ class _HomeScreenState extends State<HomeScreen>
         minChildSize: 0.22,
         maxChildSize: 0.85,
         builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: AstraTheme.cardSurface.withValues(alpha: 0.95),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-              border: Border.all(color: AstraTheme.borderSubtle, width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.5),
-                  blurRadius: 28,
-                  offset: const Offset(0, -6),
-                ),
-              ],
-            ),
-            child: ListView(
-              controller: scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4.5,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(3),
+          return ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0C0B22).withValues(alpha: 0.78),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
+                    left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+                    right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      blurRadius: 36,
+                      offset: const Offset(0, -10),
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'No Partners Connected',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4.5,
+                        decoration: BoxDecoration(
+                          color: Colors.white38,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'No Partners Connected',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Tap below to discover and connect with friends from your contacts.',
+                      style: TextStyle(color: AstraTheme.textSecondary, fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    Container(
+                      width: double.infinity,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        gradient: const LinearGradient(
+                          colors: [AstraTheme.primary, AstraTheme.secondary],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AstraTheme.primary.withValues(alpha: 0.45),
+                            blurRadius: 20,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: _openContactsModal,
+                          child: const Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.person_add_rounded, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Add Friend from Contacts',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Tap + to discover and connect with friends from your contacts.',
-                  style: TextStyle(color: AstraTheme.textSecondary, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: _openContactsModal,
-                  icon: const Icon(Icons.person_add, size: 18),
-                  label: const Text('Add Friend from Contacts', style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AstraTheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                ),
-              ],
+              ),
             ),
           );
         },
@@ -1057,19 +1101,27 @@ class _HomeScreenState extends State<HomeScreen>
       minChildSize: 0.30,
       maxChildSize: 0.88,
       builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AstraTheme.cardSurface.withValues(alpha: 0.95),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-            border: Border.all(color: AstraTheme.borderSubtle, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.6),
-                blurRadius: 30,
-                offset: const Offset(0, -8),
+        return ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF0C0B22).withValues(alpha: 0.78),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
+                  left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+                  right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    blurRadius: 36,
+                    offset: const Offset(0, -8),
+                  ),
+                ],
               ),
-            ],
-          ),
           child: StreamBuilder<DatabaseEvent>(
             stream: TelemetryService.streamPartnerTelemetry(pUid),
             builder: (context, teleSnap) {
@@ -1247,26 +1299,29 @@ class _HomeScreenState extends State<HomeScreen>
                       final isFresh = LocationRtdbService.isLocationFresh(updatedAt);
                       final freshnessLabel = LocationRtdbService.formatLocationFreshness(updatedAt);
 
-                      return Container(
+                      return _GlassContainer(
                         margin: const EdgeInsets.only(top: 14),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.04),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: isFresh
-                                ? Colors.greenAccent.withValues(alpha: 0.3)
-                                : AstraTheme.borderSubtle,
-                          ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        borderRadius: 20,
+                        blur: 16,
+                        color: const Color(0xFF161530).withValues(alpha: 0.60),
+                        border: Border.all(
+                          color: isFresh
+                              ? Colors.greenAccent.withValues(alpha: 0.35)
+                              : Colors.white.withValues(alpha: 0.12),
+                          width: 1.1,
                         ),
                         child: Row(
                           children: [
                             Container(
-                              width: 34,
-                              height: 34,
+                              width: 36,
+                              height: 36,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: (isFresh ? Colors.greenAccent : Colors.amberAccent).withValues(alpha: 0.15),
+                                color: (isFresh ? Colors.greenAccent : Colors.amberAccent).withValues(alpha: 0.18),
+                                border: Border.all(
+                                  color: (isFresh ? Colors.greenAccent : Colors.amberAccent).withValues(alpha: 0.35),
+                                ),
                               ),
                               child: Icon(
                                 isFresh ? Icons.my_location_rounded : Icons.location_history_rounded,
@@ -1274,7 +1329,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 size: 18,
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1304,24 +1359,30 @@ class _HomeScreenState extends State<HomeScreen>
                                 ],
                               ),
                             ),
-                            ElevatedButton.icon(
-                              onPressed: _isRefreshingLocation ? null : () => _refreshPartnerLocation(pUid, pName),
-                              icon: _isRefreshingLocation
-                                  ? const SizedBox(
+                            _GlassContainer(
+                              borderRadius: 14,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              blur: 12,
+                              color: AstraTheme.primary.withValues(alpha: 0.85),
+                              border: Border.all(color: AstraTheme.primaryLight.withValues(alpha: 0.6)),
+                              onTap: _isRefreshingLocation ? null : () => _refreshPartnerLocation(pUid, pName),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_isRefreshingLocation)
+                                    const SizedBox(
                                       width: 12,
                                       height: 12,
                                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
-                                  : const Icon(Icons.refresh_rounded, size: 14),
-                              label: Text(
-                                _isRefreshingLocation ? 'Pinging...' : 'Refresh',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AstraTheme.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  else
+                                    const Icon(Icons.refresh_rounded, size: 14, color: Colors.white),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    _isRefreshingLocation ? 'Pinging...' : 'Refresh',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -1332,74 +1393,65 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const SizedBox(height: 18),
 
-                  // Action Buttons Row: Call, Video, Direct Chat (Screen4.png match)
+                  // Action Buttons Row: Call, Video, Direct Chat (Glassmorphic)
                   Row(
                     children: [
                       Expanded(
-                        child: Container(
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AstraTheme.borderSubtle),
-                          ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: pPhone.isNotEmpty ? () => _callPartner(pPhone) : null,
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.call, color: Colors.white, size: 20),
-                                SizedBox(height: 4),
-                                Text('Call', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
+                        child: _GlassContainer(
+                          borderRadius: 20,
+                          blur: 16,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          color: const Color(0xFF1A1936).withValues(alpha: 0.60),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                          onTap: pPhone.isNotEmpty ? () => _callPartner(pPhone) : null,
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.call, color: Colors.white, size: 20),
+                              SizedBox(height: 6),
+                              Text('Call', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Container(
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AstraTheme.borderSubtle),
-                          ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () => _openChat(activePartner, isOnline),
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.videocam, color: Colors.white, size: 22),
-                                SizedBox(height: 4),
-                                Text('Video', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
+                        child: _GlassContainer(
+                          borderRadius: 20,
+                          blur: 16,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          color: const Color(0xFF1A1936).withValues(alpha: 0.60),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+                          onTap: () => _openChat(activePartner, isOnline),
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.videocam, color: Colors.white, size: 22),
+                              SizedBox(height: 6),
+                              Text('Video', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Container(
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: AstraTheme.primary.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: AstraTheme.primary.withValues(alpha: 0.5)),
-                          ),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () => _openChat(activePartner, isOnline),
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.chat_bubble_rounded, color: AstraTheme.primaryLight, size: 20),
-                                SizedBox(height: 4),
-                                Text('Direct Chat', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                              ],
-                            ),
+                        child: _GlassContainer(
+                          borderRadius: 20,
+                          blur: 16,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          color: AstraTheme.primary.withValues(alpha: 0.40),
+                          border: Border.all(color: AstraTheme.primaryLight.withValues(alpha: 0.65), width: 1.2),
+                          onTap: () => _openChat(activePartner, isOnline),
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.chat_bubble_rounded, color: AstraTheme.primaryLight, size: 20),
+                              SizedBox(height: 6),
+                              Text('Direct Chat', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ],
                           ),
                         ),
                       ),
@@ -1408,20 +1460,42 @@ class _HomeScreenState extends State<HomeScreen>
 
                   const SizedBox(height: 16),
 
-                  // Disconnect / Change Friend Buttons
+                  // Disconnect / Add More Friends Glass Buttons
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      TextButton.icon(
-                        icon: const Icon(Icons.link_off, size: 16, color: AstraTheme.accentDanger),
-                        label: const Text('Disconnect', style: TextStyle(color: AstraTheme.accentDanger, fontSize: 12)),
-                        onPressed: () => _disconnectPartner(currentUid, pUid, pName),
+                      _GlassContainer(
+                        borderRadius: 14,
+                        blur: 12,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        color: AstraTheme.accentDanger.withValues(alpha: 0.12),
+                        border: Border.all(color: AstraTheme.accentDanger.withValues(alpha: 0.35)),
+                        onTap: () => _disconnectPartner(currentUid, pUid, pName),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.link_off, size: 15, color: AstraTheme.accentDanger),
+                            SizedBox(width: 6),
+                            Text('Disconnect', style: TextStyle(color: AstraTheme.accentDanger, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 16),
-                      TextButton.icon(
-                        icon: const Icon(Icons.person_add_outlined, size: 16, color: AstraTheme.accentCyan),
-                        label: const Text('Add More Friends', style: TextStyle(color: AstraTheme.accentCyan, fontSize: 12)),
-                        onPressed: _openContactsModal,
+                      const SizedBox(width: 12),
+                      _GlassContainer(
+                        borderRadius: 14,
+                        blur: 12,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        color: AstraTheme.accentCyan.withValues(alpha: 0.12),
+                        border: Border.all(color: AstraTheme.accentCyan.withValues(alpha: 0.35)),
+                        onTap: _openContactsModal,
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person_add_outlined, size: 15, color: AstraTheme.accentCyan),
+                            SizedBox(width: 6),
+                            Text('Add More Friends', style: TextStyle(color: AstraTheme.accentCyan, fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -1429,9 +1503,11 @@ class _HomeScreenState extends State<HomeScreen>
               );
             },
           ),
-        );
-      },
+        ),
+      ),
     );
+  },
+);
   }
 }
 
@@ -1610,227 +1686,311 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
       }
     }
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: BoxDecoration(
-        color: AstraTheme.cardSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        border: Border.all(color: AstraTheme.borderSubtle),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C0B20).withValues(alpha: 0.88),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
+              left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+              right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Find Friends',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search contacts by name or number...',
-                hintStyle: const TextStyle(color: AstraTheme.textSecondary, fontSize: 14),
-                prefixIcon: const Icon(Icons.search, color: AstraTheme.textSecondary, size: 20),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white70, size: 18),
-                        onPressed: () => _searchController.clear(),
-                      )
-                    : null,
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.05),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AstraTheme.borderSubtle),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AstraTheme.borderSubtle),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: AstraTheme.primary),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AstraTheme.primary),
-                  )
-                : ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    children: [
-                      if (onAstraList.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'ON ASTRA',
-                            style: TextStyle(
-                              color: AstraTheme.accentCyan,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.0,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Find Friends',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextField(
+                  controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Search contacts by name or number...',
+                    hintStyle: const TextStyle(color: AstraTheme.textSecondary, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search, color: AstraTheme.textSecondary, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: Colors.white70, size: 18),
+                            onPressed: () => _searchController.clear(),
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AstraTheme.borderSubtle),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AstraTheme.borderSubtle),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: AstraTheme.primary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(color: AstraTheme.primary),
+                      )
+                    : ListView(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        children: [
+                          if (onAstraList.isNotEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                'ON ASTRA',
+                                style: TextStyle(
+                                  color: AstraTheme.accentCyan,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        ...onAstraList.map((item) {
-                          final contact = item['contact'] as Contact;
-                          final userData = item['userData'] as Map<String, dynamic>;
-                          final uid = userData['uid'] as String;
-                          final isAlreadyConnected = _myConnectedUserIds.contains(uid);
-                          final displayName = contact.displayName ?? 'User';
+                            ...onAstraList.map((item) {
+                              final contact = item['contact'] as Contact;
+                              final userData = item['userData'] as Map<String, dynamic>;
+                              final uid = userData['uid'] as String;
+                              final isAlreadyConnected = _myConnectedUserIds.contains(uid);
+                              final displayName = contact.displayName ?? 'User';
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.03),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                              return _GlassContainer(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                borderRadius: 18,
+                                blur: 14,
+                                color: Colors.white.withValues(alpha: 0.05),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
+                                    child: Text(
+                                      displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    displayName,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                                  ),
+                                  subtitle: Text(
+                                    (userData['phoneNumber'] as String?) ?? (item['phone'] as String? ?? ''),
+                                    style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
+                                  ),
+                                  trailing: isAlreadyConnected
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white10,
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: const Text(
+                                            'Connected',
+                                            style: TextStyle(color: AstraTheme.accentCyan, fontSize: 12),
+                                          ),
+                                        )
+                                      : _GlassContainer(
+                                          borderRadius: 18,
+                                          blur: 10,
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                          color: AstraTheme.primary.withValues(alpha: 0.85),
+                                          border: Border.all(color: AstraTheme.primaryLight.withValues(alpha: 0.6)),
+                                          onTap: () => _connectWithUser(userData),
+                                          child: const Text('Connect', style: TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold)),
+                                        ),
+                                ),
+                              );
+                            }),
+                            const SizedBox(height: 12),
+                          ],
+                          if (inviteList.isNotEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                'INVITE TO ASTRA',
+                                style: TextStyle(
+                                  color: AstraTheme.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
                             ),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
-                                child: Text(
-                                  displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
+                            ...inviteList.map((contact) {
+                              final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+                              final displayName = contact.displayName ?? 'Friend';
+                              return _GlassContainer(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                borderRadius: 16,
+                                blur: 12,
+                                color: Colors.white.withValues(alpha: 0.03),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                                  leading: CircleAvatar(
+                                    backgroundColor: Colors.white10,
+                                    child: Text(
+                                      displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                      style: const TextStyle(color: Colors.white70),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    displayName,
+                                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                                  ),
+                                  subtitle: Text(
+                                    phone,
+                                    style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
+                                  ),
+                                  trailing: _GlassContainer(
+                                    borderRadius: 16,
+                                    blur: 10,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    color: Colors.greenAccent.withValues(alpha: 0.12),
+                                    border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
+                                    onTap: () => _inviteViaWhatsApp(phone, displayName),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.share_outlined, size: 14, color: Colors.greenAccent),
+                                        SizedBox(width: 4),
+                                        Text('Invite', style: TextStyle(fontSize: 12, color: Colors.greenAccent, fontWeight: FontWeight.bold)),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                              title: Text(
-                                displayName,
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: Text(
-                                (userData['phoneNumber'] as String?) ?? (item['phone'] as String? ?? ''),
-                                style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
-                              ),
-                              trailing: isAlreadyConnected
-                                  ? Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white10,
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: const Text(
-                                        'Connected',
-                                        style: TextStyle(color: AstraTheme.accentCyan, fontSize: 12),
-                                      ),
-                                    )
-                                  : ElevatedButton(
-                                      onPressed: () => _connectWithUser(userData),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AstraTheme.primary,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                      child: const Text('Connect', style: TextStyle(fontSize: 13)),
-                                    ),
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 12),
-                      ],
-                      if (inviteList.isNotEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Text(
-                            'INVITE TO ASTRA',
-                            style: TextStyle(
-                              color: AstraTheme.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ),
-                        ...inviteList.map((contact) {
-                          final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
-                          final displayName = contact.displayName ?? 'Friend';
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                            leading: CircleAvatar(
-                              backgroundColor: Colors.white10,
-                              child: Text(
-                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                            ),
-                            title: Text(
-                              displayName,
-                              style: const TextStyle(color: Colors.white, fontSize: 15),
-                            ),
-                            subtitle: Text(
-                              phone,
-                              style: const TextStyle(color: AstraTheme.textSecondary, fontSize: 12),
-                            ),
-                            trailing: OutlinedButton.icon(
-                              onPressed: () => _inviteViaWhatsApp(phone, displayName),
-                              icon: const Icon(Icons.share_outlined, size: 14),
-                              label: const Text('Invite', style: TextStyle(fontSize: 12)),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.greenAccent,
-                                side: BorderSide(color: Colors.greenAccent.withValues(alpha: 0.6)),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
+                              );
+                            }),
+                          ],
+                          if (onAstraList.isEmpty && inviteList.isEmpty) ...[
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: Center(
+                                child: Text(
+                                  'No contacts found matching search',
+                                  style: TextStyle(color: AstraTheme.textSecondary),
                                 ),
                               ),
                             ),
-                          );
-                        }),
-                      ],
-                      if (onAstraList.isEmpty && inviteList.isEmpty) ...[
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 40),
-                          child: Center(
-                            child: Text(
-                              'No contacts found matching search',
-                              style: TextStyle(color: AstraTheme.textSecondary),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                          ],
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassContainer extends StatelessWidget {
+  final Widget child;
+  final double borderRadius;
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+  final double blur;
+  final Color? color;
+  final Border? border;
+  final VoidCallback? onTap;
+
+  const _GlassContainer({
+    required this.child,
+    this.borderRadius = 16,
+    this.padding,
+    this.margin,
+    this.blur = 18,
+    this.color,
+    this.border,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget content = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: color ?? const Color(0xFF14132B).withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: border ??
+            Border.all(
+              color: Colors.white.withValues(alpha: 0.16),
+              width: 1.1,
+            ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 18,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: child,
+    );
+
+    if (onTap != null) {
+      content = Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(borderRadius),
+          onTap: onTap,
+          child: content,
+        ),
+      );
+    }
+
+    return Container(
+      margin: margin,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+          child: content,
+        ),
       ),
     );
   }
