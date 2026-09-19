@@ -381,11 +381,19 @@ class _HomeScreenState extends State<HomeScreen>
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/Astra.png',
-                                width: 22,
-                                height: 22,
+                                'assets/images/transparent_logo.png',
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.contain,
                                 errorBuilder: (ctx, error, stackTrace) =>
-                                    const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 20),
+                                    Image.asset(
+                                      'assets/images/Astra.png',
+                                      width: 24,
+                                      height: 24,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (c, e, s) =>
+                                          const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 20),
+                                    ),
                               ),
                               const SizedBox(width: 8),
                               const Text(
@@ -1130,7 +1138,39 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Container(
+                        width: 68,
+                        height: 68,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1E1B4B).withValues(alpha: 0.55),
+                          border: Border.all(
+                            color: const Color(0xFFA594F9).withValues(alpha: 0.35),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFA594F9).withValues(alpha: 0.25),
+                              blurRadius: 20,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Image.asset(
+                            'assets/images/transparent_logo.png',
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.contain,
+                            errorBuilder: (ctx, err, stack) =>
+                                const Icon(Icons.people_outline, color: AstraTheme.primaryLight, size: 36),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     const Text(
                       'No Partners Connected',
                       style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
