@@ -145,7 +145,7 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
         backgroundColor: AstraTheme.cardSurface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: const BorderSide(color: AstraTheme.borderSubtle),
+          side: const BorderSide(color: AstraTheme.borderSubtle),
         ),
         title: const Text('Log Out', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to log out of Astra?', style: TextStyle(color: AstraTheme.textSecondary)),
