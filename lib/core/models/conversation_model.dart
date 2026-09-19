@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 /// ConversationModel
 ///
 /// Represents the metadata envelope for a 1-to-1 conversation stored at
@@ -28,13 +30,22 @@ class ConversationModel {
         'keyVersion': keyVersion,
       };
 
+  Map<String, dynamic> toMap() => toFirestore();
+
+  static int _parseTimestamp(dynamic value) {
+    if (value is num) return value.toInt();
+    if (value is Timestamp) return value.millisecondsSinceEpoch;
+    if (value is String) return int.tryParse(value) ?? DateTime.now().millisecondsSinceEpoch;
+    return DateTime.now().millisecondsSinceEpoch;
+  }
+
   factory ConversationModel.fromFirestore(Map<String, dynamic> data, String id) {
     final rawParticipants = data['participants'] as List<dynamic>? ?? [];
     return ConversationModel(
       id: id,
       participants: rawParticipants.map((e) => e.toString()).toList(),
-      createdAt: (data['createdAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
-      updatedAt: (data['updatedAt'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+      createdAt: _parseTimestamp(data['createdAt']),
+      updatedAt: _parseTimestamp(data['updatedAt']),
       keyVersion: (data['keyVersion'] as num?)?.toInt() ?? 1,
     );
   }

@@ -104,6 +104,14 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
+  int? _parseTimestamp(dynamic val) {
+    if (val == null) return null;
+    if (val is num) return val.toInt();
+    if (val is Timestamp) return val.millisecondsSinceEpoch;
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+
   Future<void> _refreshPartnerLocation(String partnerUid, String partnerName) async {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     if (myUid == null || _isRefreshingLocation) return;
@@ -1214,7 +1222,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         // Calculate honest human time ago label (Screen4.png "2 min ago")
         String timeAgo = '2 min ago';
-        final updatedAt = (p['updatedAt'] as num?)?.toInt();
+        final updatedAt = _parseTimestamp(p['updatedAt']);
         if (updatedAt != null && updatedAt > 0) {
           final diff = DateTime.now().millisecondsSinceEpoch - updatedAt;
           if (diff < 60000) {
@@ -1735,7 +1743,7 @@ class _HomeScreenState extends State<HomeScreen>
                       if (locSnap.hasData && locSnap.data!.snapshot.value != null) {
                         try {
                           final locMap = Map<dynamic, dynamic>.from(locSnap.data!.snapshot.value as Map);
-                          updatedAt = (locMap['updatedAt'] as num?)?.toInt();
+                          updatedAt = _parseTimestamp(locMap['updatedAt']);
                         } catch (_) {}
                       }
 
