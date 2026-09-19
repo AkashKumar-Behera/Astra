@@ -21,7 +21,18 @@ class AuthService {
     try {
       final user = await _apiClient.getCurrentUser();
       if (user.isNotEmpty) {
-        return user;
+        final dName = user['display_name'] ?? user['name'];
+        final pUrl = user['avatar_url'] ?? user['photo_url'];
+        final pNum = user['phone_number'] ?? user['phoneNumber'];
+        return {
+          ...user,
+          'name': dName,
+          'display_name': dName,
+          'photo_url': pUrl,
+          'avatar_url': pUrl,
+          'phoneNumber': pNum,
+          'phone_number': pNum,
+        };
       }
     } catch (_) {}
     return null;
@@ -117,7 +128,57 @@ class AuthService {
     }
   }
 
-  /// Fetch all registered users / friends
+  /// Look up registered users by phone numbers
+  static Future<List<Map<String, dynamic>>> lookupUsers(List<String> phoneNumbers) async {
+    try {
+      final list = await _apiClient.lookupUsers(phoneNumbers);
+      return list.map((u) {
+        final dName = u['display_name'] ?? u['name'] ?? 'Astra User';
+        final pUrl = u['avatar_url'] ?? u['photo_url'];
+        final pNum = u['phone_number'] ?? u['phoneNumber'] ?? '';
+        return {
+          ...u,
+          'uid': u['id'] ?? u['uid'],
+          'id': u['id'] ?? u['uid'],
+          'name': dName,
+          'display_name': dName,
+          'phoneNumber': pNum,
+          'phone_number': pNum,
+          'photoUrl': pUrl,
+          'avatar_url': pUrl,
+        };
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Search registered users by name or phone
+  static Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    try {
+      final list = await _apiClient.searchUsers(query);
+      return list.map((u) {
+        final dName = u['display_name'] ?? u['name'] ?? 'Astra User';
+        final pUrl = u['avatar_url'] ?? u['photo_url'];
+        final pNum = u['phone_number'] ?? u['phoneNumber'] ?? '';
+        return {
+          ...u,
+          'uid': u['id'] ?? u['uid'],
+          'id': u['id'] ?? u['uid'],
+          'name': dName,
+          'display_name': dName,
+          'phoneNumber': pNum,
+          'phone_number': pNum,
+          'photoUrl': pUrl,
+          'avatar_url': pUrl,
+        };
+      }).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Fetch all registered users / friends fallback
   static Future<List<Map<String, dynamic>>> fetchAllRegisteredUsers() async {
     try {
       return await _friendRepo.listFriends();

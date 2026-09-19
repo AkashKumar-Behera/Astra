@@ -170,6 +170,28 @@ class AstraApiClient {
     await _send('DELETE', '/devices/$deviceId');
   }
 
+  /// Look up users by a list of phone numbers
+  Future<List<Map<String, dynamic>>> lookupUsers(List<String> phoneNumbers) async {
+    if (phoneNumbers.isEmpty) return [];
+    final res = await _send('POST', '/users/lookup', body: {
+      'phone_numbers': phoneNumbers,
+    });
+    if (res is Map && res['users'] is List) {
+      return (res['users'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
+  /// Search users by name or phone
+  Future<List<Map<String, dynamic>>> searchUsers(String query) async {
+    if (query.trim().isEmpty) return [];
+    final res = await _send('GET', '/users/search', queryParams: {'q': query.trim()});
+    if (res is Map && res['users'] is List) {
+      return (res['users'] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    }
+    return [];
+  }
+
   // ================= FRIENDS =================
 
   Future<Map<String, dynamic>> sendFriendRequest(String recipientUserId) async {

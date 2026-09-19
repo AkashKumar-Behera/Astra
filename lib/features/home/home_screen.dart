@@ -1479,19 +1479,6 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
     }
 
     try {
-      final regList = await AuthService.fetchAllRegisteredUsers();
-      final Map<String, Map<String, dynamic>> map = {};
-      for (final u in regList) {
-        final ph = u['phoneNumber'] as String? ?? '';
-        final clean = _normalizePhone(ph);
-        if (clean.isNotEmpty) {
-          map[clean] = u;
-        }
-      }
-      _registeredUsers = map;
-    } catch (_) {}
-
-    try {
       final hasPerm = await FlutterContacts.permissions.has(PermissionType.read);
       bool granted = hasPerm;
       if (!granted) {
@@ -1510,6 +1497,20 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
           return nameA.compareTo(nameB);
         });
       }
+    } catch (_) {}
+
+    try {
+      final contactPhones = _contacts.expand((c) => c.phones.map((p) => p.number)).toList();
+      final regList = await AuthService.lookupUsers(contactPhones);
+      final Map<String, Map<String, dynamic>> map = {};
+      for (final u in regList) {
+        final ph = (u['phone_number'] ?? u['phoneNumber'] ?? '') as String;
+        final clean = _normalizePhone(ph);
+        if (clean.isNotEmpty) {
+          map[clean] = u;
+        }
+      }
+      _registeredUsers = map;
     } catch (_) {}
 
     if (mounted) setState(() => _isLoading = false);
