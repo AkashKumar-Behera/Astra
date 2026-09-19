@@ -147,11 +147,7 @@ class _ProfileSettingsModalState extends State<ProfileSettingsModal> {
           decoration: BoxDecoration(
             color: const Color(0xFF0C0B20).withValues(alpha: 0.88),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
-              left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-              right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
           ),
           child: SafeArea(
             top: false,

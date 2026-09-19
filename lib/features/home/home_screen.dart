@@ -586,11 +586,7 @@ class _HomeScreenState extends State<HomeScreen>
                 decoration: BoxDecoration(
                   color: const Color(0xFF0C0B20).withValues(alpha: 0.85),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                  border: Border(
-                    top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
-                    left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-                    right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-                  ),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.6),
@@ -992,11 +988,7 @@ class _HomeScreenState extends State<HomeScreen>
                 decoration: BoxDecoration(
                   color: const Color(0xFF0C0B22).withValues(alpha: 0.78),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                  border: Border(
-                    top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
-                    left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-                    right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-                  ),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.55),
@@ -1109,11 +1101,7 @@ class _HomeScreenState extends State<HomeScreen>
               decoration: BoxDecoration(
                 color: const Color(0xFF0C0B22).withValues(alpha: 0.78),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
-                  left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-                  right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.6),
@@ -1695,11 +1683,7 @@ class _ContactsAndSearchModalState extends State<_ContactsAndSearchModal> {
           decoration: BoxDecoration(
             color: const Color(0xFF0C0B20).withValues(alpha: 0.88),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
-              left: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-              right: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
           ),
           child: Column(
             children: [
