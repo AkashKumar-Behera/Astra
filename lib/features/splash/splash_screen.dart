@@ -263,9 +263,9 @@ class _SplashScreenState extends State<SplashScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    AstraTheme.background.withOpacity(0.3),
-                    AstraTheme.background.withOpacity(0.7),
-                    AstraTheme.background.withOpacity(0.95),
+                    AstraTheme.background.withValues(alpha: 0.3),
+                    AstraTheme.background.withValues(alpha: 0.7),
+                    AstraTheme.background.withValues(alpha: 0.95),
                   ],
                 ),
               ),
@@ -292,8 +292,8 @@ class _SplashScreenState extends State<SplashScreen>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AstraTheme.primary.withOpacity(
-                                    _glowAnimation.value * 0.6),
+                                color: AstraTheme.primary.withValues(
+                                    alpha: _glowAnimation.value * 0.6),
                                 blurRadius: 48,
                                 spreadRadius: 8,
                               ),
@@ -335,7 +335,7 @@ class _SplashScreenState extends State<SplashScreen>
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                             letterSpacing: 3.0,
-                            color: AstraTheme.primaryLight.withOpacity(0.9),
+                            color: AstraTheme.primaryLight.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
@@ -368,7 +368,7 @@ class _SplashScreenState extends State<SplashScreen>
                   style: TextStyle(
                     fontSize: 13,
                     letterSpacing: 1.2,
-                    color: AstraTheme.textSecondary.withOpacity(0.7),
+                    color: AstraTheme.textSecondary.withValues(alpha: 0.7),
                   ),
                 ),
               ],

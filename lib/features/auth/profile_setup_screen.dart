@@ -21,18 +21,107 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final TextEditingController _nameController = TextEditingController();
+  final FocusNode _nameFocusNode = FocusNode();
   File? _localImageFile;
   bool _isLoading = false;
+  bool _hasValidName = false;
 
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickImage() async {
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(() {
+      final valid = _nameController.text.trim().isNotEmpty;
+      if (valid != _hasValidName) {
+        setState(() => _hasValidName = valid);
+      }
+    });
+  }
+
+  Future<void> _showImagePickerSheet() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AstraTheme.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+          child: Wrap(
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Text(
+                  'Choose Profile Photo',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AstraTheme.textPrimary,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AstraTheme.primary.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.photo_camera_rounded, color: AstraTheme.primaryLight, size: 20),
+                ),
+                title: const Text('Take Photo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AstraTheme.accentCyan.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: AstraTheme.accentCyan, size: 20),
+                ),
+                title: const Text('Choose from Gallery', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              if (_localImageFile != null)
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AstraTheme.accentDanger.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.delete_outline, color: AstraTheme.accentDanger, size: 20),
+                  ),
+                  title: const Text('Remove Photo', style: TextStyle(color: AstraTheme.accentDanger, fontWeight: FontWeight.w500)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    setState(() => _localImageFile = null);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? picked = await _picker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         imageQuality: 75,
-        maxWidth: 600,
-        maxHeight: 600,
+        maxWidth: 512,
+        maxHeight: 512,
       );
 
       if (picked != null) {
@@ -44,8 +133,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to pick image: $e'),
-            backgroundColor: Colors.redAccent,
+            content: Text('Failed to select image: $e'),
+            backgroundColor: AstraTheme.accentDanger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -56,9 +147,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter your name'),
-          backgroundColor: Colors.redAccent,
+        SnackBar(
+          content: const Text('Please enter your name'),
+          backgroundColor: AstraTheme.accentDanger,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       return;
@@ -69,8 +162,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       String? photoUrl;
 
-      // Upload profile image to Firebase Storage if selected
-      // Stored at profile_pictures/{uid}.jpg to overwrite without storage bloat
       if (_localImageFile != null) {
         photoUrl = await AuthService.uploadProfilePicture(
           uid: widget.uid,
@@ -78,7 +169,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         );
       }
 
-      // Save user profile in Firestore
       await AuthService.saveUserProfile(
         uid: widget.uid,
         name: name,
@@ -89,14 +179,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      // Navigate directly to HomeScreen
-      Navigator.of(context).pushReplacement(
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (context) => HomeScreen(
             userName: name,
             photoUrl: photoUrl,
           ),
         ),
+        (route) => false,
       );
     } catch (e) {
       if (mounted) {
@@ -104,7 +194,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to save profile: $e'),
-            backgroundColor: Colors.redAccent,
+            backgroundColor: AstraTheme.accentDanger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -114,6 +206,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _nameFocusNode.dispose();
     super.dispose();
   }
 
@@ -123,27 +216,36 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       backgroundColor: AstraTheme.background,
       body: Stack(
         children: [
-          // Background Space Graphic
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/Bg image.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  const SizedBox.shrink(),
+          // Background ambient gradient glow
+          Positioned(
+            top: -100,
+            left: -60,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AstraTheme.primary.withValues(alpha: 0.22),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
             ),
           ),
-
-          // Cosmic Dark Overlay
-          Positioned.fill(
+          Positioned(
+            bottom: -80,
+            right: -60,
             child: Container(
+              width: 280,
+              height: 280,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
                   colors: [
-                    AstraTheme.background.withValues(alpha: 0.5),
-                    AstraTheme.background.withValues(alpha: 0.85),
-                    AstraTheme.background,
+                    AstraTheme.secondary.withValues(alpha: 0.18),
+                    Colors.transparent,
                   ],
                 ),
               ),
@@ -151,26 +253,17 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           ),
 
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  physics: const ClampingScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: IntrinsicHeight(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 28.0),
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 36),
-
-                  // Header Astra Icon & Title
-                  Row(
+            child: Column(
+              children: [
+                // Top App Bar with Astra branding
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
-                        width: 38,
-                        height: 38,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: AstraTheme.primary.withValues(alpha: 0.2),
@@ -180,8 +273,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             'assets/images/Astra.png',
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.auto_awesome,
-                                    color: AstraTheme.primaryLight, size: 20),
+                                const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 18),
                           ),
                         ),
                       ),
@@ -189,7 +281,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       const Text(
                         'Astra',
                         style: TextStyle(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1.5,
                           color: AstraTheme.textPrimary,
@@ -197,269 +289,291 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     ],
                   ),
+                ),
 
-                  const SizedBox(height: 16),
-
-                  // Progress Step (1 of 2)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AstraTheme.primaryLight,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 32,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AstraTheme.borderSubtle,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    '1 of 2',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AstraTheme.textMuted,
-                    ),
-                  ),
-
-                  const Spacer(flex: 1),
-
-                  // Title & Subtitle
-                  RichText(
-                    textAlign: TextAlign.center,
-                    text: const TextSpan(
+                // Scrollable Form
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 28.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        TextSpan(
-                          text: 'Welcome to ',
+                        const SizedBox(height: 16),
+
+                        // Title & Subtitle
+                        const Text(
+                          'Create Your Profile',
                           style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.4,
                             color: AstraTheme.textPrimary,
                           ),
                         ),
-                        TextSpan(
-                          text: 'Astra',
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Choose your photo and enter your name to connect with friends.',
+                          textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: AstraTheme.primaryLight,
+                            fontSize: 14,
+                            height: 1.4,
+                            color: AstraTheme.textSecondary,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Set up your profile for your private space.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AstraTheme.textSecondary,
-                    ),
-                  ),
 
-                  const SizedBox(height: 36),
+                        const SizedBox(height: 36),
 
-                  // Profile Avatar Placeholder with Local Preview
-                  GestureDetector(
-                    onTap: _pickImage,
-                    child: Stack(
-                      children: [
-                        Container(
-                          width: 130,
-                          height: 130,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AstraTheme.primary.withValues(alpha: 0.6),
-                              width: 2,
-                            ),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AstraTheme.cardSurfaceLight,
-                                AstraTheme.cardSurface,
-                              ],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AstraTheme.primary.withValues(alpha: 0.25),
-                                blurRadius: 20,
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: _localImageFile != null
-                                ? Image.file(
-                                    _localImageFile!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : const Icon(
-                                    Icons.person,
-                                    size: 68,
-                                    color: AstraTheme.textSecondary,
+                        // Profile Picture Picker
+                        GestureDetector(
+                          onTap: _showImagePickerSheet,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              Container(
+                                width: 124,
+                                height: 124,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AstraTheme.primaryLight.withValues(alpha: 0.6),
+                                    width: 2.2,
                                   ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 2,
-                          right: 2,
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AstraTheme.primary,
-                              border: Border.all(
-                                color: AstraTheme.background,
-                                width: 2.5,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AstraTheme.primary.withValues(alpha: 0.5),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              size: 19,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Name Input Field
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AstraTheme.cardSurface.withValues(alpha: 0.8),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: AstraTheme.borderSubtle.withValues(alpha: 0.8),
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: TextField(
-                      controller: _nameController,
-                      style: const TextStyle(
-                        color: AstraTheme.textPrimary,
-                        fontSize: 15,
-                      ),
-                      decoration: const InputDecoration(
-                        icon: Icon(Icons.person_outline,
-                            color: AstraTheme.textSecondary),
-                        hintText: 'Your name',
-                        hintStyle: TextStyle(color: AstraTheme.textMuted),
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Privacy Note
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lock_outline,
-                          size: 14, color: AstraTheme.textSecondary),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Your profile is only visible to your connection.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AstraTheme.textSecondary.withValues(alpha: 0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const Spacer(flex: 2),
-
-                  // Continue / Proceed Button
-                  Container(
-                    width: double.infinity,
-                    height: 54,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [
-                          AstraTheme.primary,
-                          AstraTheme.secondary,
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AstraTheme.primary.withValues(alpha: 0.4),
-                          blurRadius: 20,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: _isLoading ? null : _handleContinue,
-                        child: Center(
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
+                                  gradient: const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      AstraTheme.cardSurfaceLight,
+                                      AstraTheme.cardSurface,
+                                    ],
                                   ),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Text(
-                                      'Continue',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                        letterSpacing: 0.5,
-                                      ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AstraTheme.primary.withValues(alpha: 0.28),
+                                      blurRadius: 24,
+                                      spreadRadius: 2,
                                     ),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward,
-                                        size: 18, color: Colors.white),
                                   ],
                                 ),
-                        ),
-                      ),
-                    ),
-                  ),
+                                child: ClipOval(
+                                  child: _localImageFile != null
+                                      ? Image.file(
+                                          _localImageFile!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : const Icon(
+                                          Icons.person_rounded,
+                                          size: 64,
+                                          color: AstraTheme.textSecondary,
+                                        ),
+                                ),
+                              ),
 
-                  const SizedBox(height: 28),
+                              // Camera badge icon
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [AstraTheme.primary, AstraTheme.secondary],
+                                  ),
+                                  border: Border.all(
+                                    color: AstraTheme.background,
+                                    width: 2.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AstraTheme.primary.withValues(alpha: 0.5),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ],
                           ),
                         ),
-                      ),
+
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _showImagePickerSheet,
+                          child: Text(
+                            _localImageFile != null ? 'Change photo' : 'Add profile photo',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AstraTheme.primaryLight,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Name Input Card
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AstraTheme.cardSurface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: _nameFocusNode.hasFocus
+                                  ? AstraTheme.primaryLight
+                                  : AstraTheme.borderSubtle,
+                              width: _nameFocusNode.hasFocus ? 1.6 : 1.0,
+                            ),
+                            boxShadow: _nameFocusNode.hasFocus
+                                ? [
+                                    BoxShadow(
+                                      color: AstraTheme.primary.withValues(alpha: 0.2),
+                                      blurRadius: 14,
+                                    ),
+                                  ]
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.15),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.person_outline_rounded, color: AstraTheme.textSecondary, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: _nameController,
+                                  focusNode: _nameFocusNode,
+                                  textCapitalization: TextCapitalization.words,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: AstraTheme.textPrimary,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter your name',
+                                    hintStyle: TextStyle(
+                                      fontSize: 15,
+                                      color: AstraTheme.textMuted,
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                  onSubmitted: (_) {
+                                    if (_hasValidName && !_isLoading) _handleContinue();
+                                  },
+                                ),
+                              ),
+                              if (_nameController.text.isNotEmpty)
+                                IconButton(
+                                  icon: const Icon(Icons.close, size: 18, color: AstraTheme.textMuted),
+                                  onPressed: () => _nameController.clear(),
+                                ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Privacy Indicator
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.lock_outline, size: 14, color: AstraTheme.textSecondary),
+                            SizedBox(width: 6),
+                            Text(
+                              'Only shared with your mutual connections',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AstraTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 36),
+
+                        // Continue Button
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: double.infinity,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            gradient: _hasValidName
+                                ? const LinearGradient(
+                                    colors: [AstraTheme.primary, AstraTheme.secondary],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  )
+                                : LinearGradient(
+                                    colors: [
+                                      AstraTheme.cardSurfaceLight,
+                                      AstraTheme.cardSurface,
+                                    ],
+                                  ),
+                            boxShadow: _hasValidName
+                                ? [
+                                    BoxShadow(
+                                      color: AstraTheme.primary.withValues(alpha: 0.4),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: (_hasValidName && !_isLoading) ? _handleContinue : null,
+                              child: Center(
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 22,
+                                        height: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            'Enter Astra',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: _hasValidName ? Colors.white : AstraTheme.textMuted,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 18,
+                                            color: _hasValidName ? Colors.white : AstraTheme.textMuted,
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                ),
+              ],
             ),
+          ),
         ],
       ),
     );
