@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../crypto/crypto_service.dart';
 import '../models/chat_message_model.dart';
 import '../models/conversation_model.dart';
+import 'websocket_service.dart';
 
 /// ChatService
 ///
@@ -176,6 +177,17 @@ class ChatService {
     );
 
     await batch.commit();
+
+    // Broadcast over WebSocket for sub-50ms instant delivery
+    if (WebSocketService.isConnected) {
+      WebSocketService.sendEncryptedMessage(
+        messageId: messageId,
+        conversationId: conversationId,
+        recipientUid: recipientUid,
+        plaintext: text,
+      ).catchError((_) => false);
+    }
+
     return message;
   }
 

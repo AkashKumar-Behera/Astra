@@ -12,6 +12,7 @@ import '../../core/services/webrtc_call_service.dart';
 import '../../core/services/r2_storage_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../../core/services/notification_service.dart';
+import '../../core/services/websocket_service.dart';
 import '../calls/voice_call_screen.dart';
 import '../calls/video_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
@@ -44,6 +45,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late final ChatService _chatService;
   StreamSubscription<List<ChatMessageModel>>? _messagesSubscription;
+  StreamSubscription<ChatMessageModel>? _wsSubscription;
 
   List<ChatMessageModel> _messages = [];
   bool _isLoading = true;
@@ -102,6 +104,23 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       },
     );
+
+    _wsSubscription?.cancel();
+    _wsSubscription = WebSocketService.onMessage.listen((wsMsg) {
+      if (!mounted) return;
+      if (wsMsg.conversationId == _conversationId ||
+          wsMsg.senderId == widget.partnerUid) {
+        setState(() {
+          final index = _messages.indexWhere((m) => m.id == wsMsg.id);
+          if (index == -1) {
+            _messages.add(wsMsg);
+          } else {
+            _messages[index] = wsMsg;
+          }
+        });
+        _scrollToBottom();
+      }
+    });
   }
 
   Future<void> _sendMessage({
@@ -267,6 +286,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (NotificationService.activeConversationId == _conversationId) {
       NotificationService.activeConversationId = null;
     }
+    _wsSubscription?.cancel();
     _messagesSubscription?.cancel();
     _textController.dispose();
     _scrollController.dispose();

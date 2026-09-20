@@ -8,6 +8,7 @@ import 'package:workmanager/workmanager.dart';
 
 import '../../firebase_options.dart';
 import 'location_rtdb_service.dart';
+import 'websocket_service.dart';
 
 const String kBackgroundLocationTask = 'astra_background_location_task';
 
@@ -116,6 +117,12 @@ class BackgroundLocationManager {
             uid: uid,
             latitude: position.latitude,
             longitude: position.longitude,
+          );
+
+          WebSocketService.sendLocationUpdate(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
           );
         } catch (e) {
           debugPrint('Error writing live background coordinates: $e');
