@@ -247,7 +247,7 @@ class SettingsScreen extends StatelessWidget {
                     _buildSettingsTile(
                       icon: Icons.info_outline_rounded,
                       title: 'About Astra',
-                      subtitle: 'Version 1.0.8',
+                      subtitle: 'Version 1.0.9',
                       onTap: () {},
                     ),
                   ],
