@@ -70,17 +70,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    if (NotificationService.activeConversationId == _conversationId) {
-      NotificationService.activeConversationId = null;
-    }
-    _messagesSubscription?.cancel();
-    _textController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   void _initChatStream() {
     setState(() {
       _isLoading = true;
@@ -275,6 +264,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    if (NotificationService.activeConversationId == _conversationId) {
+      NotificationService.activeConversationId = null;
+    }
     _messagesSubscription?.cancel();
     _textController.dispose();
     _scrollController.dispose();
