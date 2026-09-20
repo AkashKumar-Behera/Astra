@@ -59,55 +59,14 @@ void notificationTapBackground(NotificationResponse response) async {
   }
 }
 
-/// Top-level background message handler for FCM
-///
-/// Decrypts encrypted message payloads locally on device and displays
-/// rich notifications with True Decrypted Text and Direct Reply action.
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (_) {}
-
-  final data = message.data;
-  if (data['type'] != 'chat_message') return;
-
-  final ciphertext = data['ciphertext'] as String?;
-  final iv = data['iv'] as String?;
-  final conversationId = data['conversationId'] as String?;
-  final senderId = data['senderId'] as String?;
-  final senderName = data['senderName'] as String? ?? 'Partner';
-  final messageId = data['messageId'] as String? ?? '';
-  final keyVersion = int.tryParse(data['keyVersion'] as String? ?? '1') ?? 1;
-
-  String bodyText = 'New message received';
-
-  if (ciphertext != null &&
-      iv != null &&
-      conversationId != null &&
-      senderId != null) {
-    try {
-      final decrypted = await CryptoService.decryptMessage(
-        ciphertextBase64: ciphertext,
-        ivBase64: iv,
-        conversationId: conversationId,
-        messageId: messageId,
-        senderId: senderId,
-        keyVersion: keyVersion,
-      );
-      if (decrypted.isNotEmpty) {
-        bodyText = decrypted;
-      }
-    } catch (e) {
-      debugPrint('Background notification decryption fallback: $e');
-      bodyText = 'New encrypted message';
-    }
-  }
-
-  // Display rich local notification
+/// Helper to show local decrypted notification
+Future<void> showLocalDecryptedNotification({
+  required String messageId,
+  required String senderName,
+  required String senderId,
+  required String conversationId,
+  required String bodyText,
+}) async {
   const androidDetails = AndroidNotificationDetails(
     'astra_chat_messages',
     'Astra Messages',
@@ -161,6 +120,63 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
+/// Top-level background message handler for FCM
+///
+/// Decrypts encrypted message payloads locally on device and displays
+/// rich notifications with True Decrypted Text and Direct Reply action.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {}
+
+  final data = message.data;
+  if (data['type'] != 'chat_message') return;
+
+  final ciphertext = data['ciphertext'] as String?;
+  final iv = data['iv'] as String?;
+  final conversationId = data['conversationId'] as String?;
+  final senderId = data['senderId'] as String?;
+  final senderName = data['senderName'] as String? ?? 'Partner';
+  final messageId = data['messageId'] as String? ?? '';
+  final keyVersion = int.tryParse(data['keyVersion'] as String? ?? '1') ?? 1;
+
+  String bodyText = 'New message received';
+
+  if (ciphertext != null &&
+      iv != null &&
+      conversationId != null &&
+      senderId != null) {
+    try {
+      final decrypted = await CryptoService.decryptMessage(
+        ciphertextBase64: ciphertext,
+        ivBase64: iv,
+        conversationId: conversationId,
+        messageId: messageId,
+        senderId: senderId,
+        keyVersion: keyVersion,
+      );
+      if (decrypted.isNotEmpty) {
+        bodyText = decrypted;
+      }
+    } catch (e) {
+      debugPrint('Background notification decryption fallback: $e');
+      bodyText = 'New encrypted message';
+    }
+  }
+
+  await showLocalDecryptedNotification(
+    messageId: messageId,
+    senderName: senderName,
+    senderId: senderId ?? '',
+    conversationId: conversationId ?? '',
+    bodyText: bodyText,
+  );
+}
+
 /// Production NotificationService for Astra
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
@@ -170,18 +186,42 @@ class NotificationService {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
   static StreamSubscription<String>? _tokenRefreshSub;
+  static StreamSubscription<User?>? _authSub;
+  static StreamSubscription? _conversationsSub;
+  static final Map<String, StreamSubscription> _convMsgSubs = {};
+  static final Set<String> _processedMessageIds = {};
+
+  /// Set by ChatScreen when open to avoid showing notification for active chat
+  static String? activeConversationId;
 
   /// Initialize local notification plugins, FCM listeners, and tokens
   static Future<void> initialize() async {
     try {
       // 1. Initialize Flutter Local Notifications
       const androidInit = AndroidInitializationSettings('ic_notification');
-      const darwinInit = DarwinInitializationSettings(
-        requestAlertPermission: false,
-        requestBadgePermission: false,
-        requestSoundPermission: false,
+      final darwinInit = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+        notificationCategories: [
+          DarwinNotificationCategory(
+            'astra_chat_category',
+            actions: [
+              DarwinNotificationAction.plain(
+                'reply_action',
+                'Reply',
+                options: {
+                  DarwinNotificationActionOption.foreground,
+                },
+              ),
+            ],
+            options: {
+              DarwinNotificationCategoryOption.customDismissAction,
+            },
+          ),
+        ],
       );
-      const initSettings = InitializationSettings(
+      final initSettings = InitializationSettings(
         android: androidInit,
         iOS: darwinInit,
       );
@@ -228,17 +268,26 @@ class NotificationService {
         return;
       }
 
-      // 4. Set FCM background handler
-      if (Platform.isAndroid) {
-        try {
-          FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-        } catch (_) {}
-      }
+      // 4. Set FCM background handler (Android & iOS)
+      try {
+        FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      } catch (_) {}
 
-      // 5. Register current device token
+      // 5. Auto-register device token and start realtime message watcher on auth changes
+      _authSub?.cancel();
+      _authSub = _auth.authStateChanges().listen((user) async {
+        if (user != null) {
+          await registerDeviceToken(user.uid);
+          startRealtimeMessageWatcher(user.uid);
+        } else {
+          stopRealtimeMessageWatcher();
+        }
+      });
+
       final currentUser = _auth.currentUser;
       if (currentUser != null) {
         await registerDeviceToken(currentUser.uid);
+        startRealtimeMessageWatcher(currentUser.uid);
       }
 
       // 6. Listen to token refreshes
@@ -252,7 +301,6 @@ class NotificationService {
 
       // 7. Handle foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-        // Trigger on-device local notification even if app is foregrounded
         await firebaseMessagingBackgroundHandler(message);
       });
 
@@ -269,6 +317,118 @@ class NotificationService {
     } catch (e) {
       debugPrint('NotificationService.initialize ignored non-fatal error: $e');
     }
+  }
+
+  /// Start watching conversations for incoming messages in realtime (Foreground & Background fallback)
+  static void startRealtimeMessageWatcher(String uid) {
+    stopRealtimeMessageWatcher();
+
+    _conversationsSub = _firestore
+        .collection('conversations')
+        .where('participants', arrayContains: uid)
+        .snapshots()
+        .listen((convSnapshot) {
+      final activeConvIds = <String>{};
+
+      for (final convDoc in convSnapshot.docs) {
+        final convId = convDoc.id;
+        activeConvIds.add(convId);
+
+        if (!_convMsgSubs.containsKey(convId)) {
+          _convMsgSubs[convId] = _firestore
+              .collection('conversations')
+              .doc(convId)
+              .collection('messages')
+              .orderBy('timestamp', descending: true)
+              .limit(1)
+              .snapshots()
+              .listen((msgSnapshot) async {
+            if (msgSnapshot.docs.isEmpty) return;
+            final msgDoc = msgSnapshot.docs.first;
+            final msgData = msgDoc.data();
+            final msgId = msgDoc.id;
+
+            final recipientId = msgData['recipientId'] as String?;
+            final senderId = msgData['senderId'] as String?;
+            final timestamp = msgData['timestamp'] as int? ?? 0;
+
+            final now = DateTime.now().millisecondsSinceEpoch;
+            // Only notify for fresh incoming messages (< 25s) addressed to current user
+            if (recipientId == uid &&
+                senderId != null &&
+                senderId != uid &&
+                !_processedMessageIds.contains(msgId) &&
+                (now - timestamp).abs() < 25000) {
+              _processedMessageIds.add(msgId);
+
+              // Don't show notification banner if user is currently inside this chat
+              if (activeConversationId == convId) {
+                return;
+              }
+
+              String senderName = 'Partner';
+              try {
+                final senderDoc =
+                    await _firestore.collection('users').doc(senderId).get();
+                if (senderDoc.exists) {
+                  senderName =
+                      (senderDoc.data()?['name'] as String?) ?? 'Partner';
+                }
+              } catch (_) {}
+
+              final ciphertext = msgData['ciphertext'] as String?;
+              final iv = msgData['iv'] as String?;
+              final keyVersion = msgData['keyVersion'] as int? ?? 1;
+
+              String bodyText = 'New message received';
+              if (ciphertext != null && iv != null) {
+                try {
+                  final decrypted = await CryptoService.decryptMessage(
+                    ciphertextBase64: ciphertext,
+                    ivBase64: iv,
+                    conversationId: convId,
+                    messageId: msgId,
+                    senderId: senderId,
+                    keyVersion: keyVersion,
+                  );
+                  if (decrypted.isNotEmpty) {
+                    bodyText = decrypted;
+                  }
+                } catch (_) {
+                  bodyText = 'New encrypted message';
+                }
+              }
+
+              await showLocalDecryptedNotification(
+                messageId: msgId,
+                senderName: senderName,
+                senderId: senderId,
+                conversationId: convId,
+                bodyText: bodyText,
+              );
+            }
+          });
+        }
+      }
+
+      _convMsgSubs.removeWhere((id, sub) {
+        if (!activeConvIds.contains(id)) {
+          sub.cancel();
+          return true;
+        }
+        return false;
+      });
+    });
+  }
+
+  /// Stop watching conversations
+  static void stopRealtimeMessageWatcher() {
+    _conversationsSub?.cancel();
+    _conversationsSub = null;
+    for (final sub in _convMsgSubs.values) {
+      sub.cancel();
+    }
+    _convMsgSubs.clear();
   }
 
   /// Get stable unique hardware/app device ID
@@ -399,5 +559,8 @@ class NotificationService {
 
   static void dispose() {
     _tokenRefreshSub?.cancel();
+    _authSub?.cancel();
+    stopRealtimeMessageWatcher();
   }
 }
+

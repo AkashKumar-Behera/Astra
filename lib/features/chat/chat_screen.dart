@@ -11,6 +11,7 @@ import '../../core/services/presence_service.dart';
 import '../../core/services/webrtc_call_service.dart';
 import '../../core/services/r2_storage_service.dart';
 import '../../core/theme/astra_theme.dart';
+import '../../core/services/notification_service.dart';
 import '../calls/voice_call_screen.dart';
 import '../calls/video_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
@@ -61,11 +62,23 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (_currentUid.isNotEmpty && widget.partnerUid.isNotEmpty) {
       _conversationId = ChatService.getConversationId(_currentUid, widget.partnerUid);
+      NotificationService.activeConversationId = _conversationId;
       _initChatStream();
     } else {
       _isLoading = false;
       _errorMessage = 'Authentication or partner information missing.';
     }
+  }
+
+  @override
+  void dispose() {
+    if (NotificationService.activeConversationId == _conversationId) {
+      NotificationService.activeConversationId = null;
+    }
+    _messagesSubscription?.cancel();
+    _textController.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _initChatStream() {
