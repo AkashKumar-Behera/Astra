@@ -20,6 +20,7 @@ import '../../core/services/webrtc_call_service.dart';
 import '../../core/services/map_cache_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
+import '../../core/services/background_location_service.dart';
 import '../calls/incoming_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
 import '../settings/settings_screen.dart';
@@ -76,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen>
       PresenceService.instance.init(uid);
       TelemetryService.startTelemetrySync(uid);
       LocationRtdbService.startLocationRequestListener(uid);
+      BackgroundLocationManager.startContinuousTracking(uid);
 
       _incomingCallSub = WebRtcCallService.listenToIncomingCalls(uid).listen((callData) {
         if (callData != null && mounted) {

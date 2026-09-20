@@ -32,6 +32,9 @@ exports.onChatMessageCreated = onDocumentCreated(
       recipientId,
       conversationId,
       id: messageId,
+      ciphertext,
+      iv,
+      keyVersion,
     } = messageData;
 
     if (!recipientId || !senderId || !conversationId) {
@@ -39,7 +42,7 @@ exports.onChatMessageCreated = onDocumentCreated(
     }
 
     try {
-      // 1. Fetch sender display name (generic fallback if private)
+      // 1. Fetch sender display name
       const senderDoc = await admin
         .firestore()
         .collection("users")
@@ -47,8 +50,8 @@ exports.onChatMessageCreated = onDocumentCreated(
         .get();
 
       const senderName = senderDoc.exists
-        ? senderDoc.data()?.name || "Friend"
-        : "Friend";
+        ? senderDoc.data()?.name || "Partner"
+        : "Partner";
 
       // 2. Query recipient's registered device tokens
       const devicesSnap = await admin
@@ -75,31 +78,35 @@ exports.onChatMessageCreated = onDocumentCreated(
 
       if (tokens.length === 0) return;
 
-      // 3. Build privacy-preserving generic FCM payload
+      // 3. Build data payload for local on-device decryption
       const payload = {
         tokens: tokens,
-        notification: {
-          title: "New message",
-          body: `New message from ${senderName}`,
-        },
         data: {
           type: "chat_message",
-          conversationId: conversationId,
-          senderId: senderId,
-          messageId: messageId || event.params.messageId,
+          conversationId: String(conversationId),
+          senderId: String(senderId),
+          senderName: String(senderName),
+          messageId: String(messageId || event.params.messageId),
+          ciphertext: String(ciphertext || ""),
+          iv: String(iv || ""),
+          keyVersion: String(keyVersion || "1"),
           timestamp: Date.now().toString(),
         },
         android: {
           priority: "high",
-          notification: {
-            channelId: "astra_chat_messages",
-            priority: "high",
-            defaultSound: true,
-          },
         },
         apns: {
+          headers: {
+            "apns-priority": "10",
+          },
           payload: {
             aps: {
+              alert: {
+                title: senderName,
+                body: "New message received",
+              },
+              "content-available": 1,
+              "mutable-content": 1,
               sound: "default",
               badge: 1,
             },

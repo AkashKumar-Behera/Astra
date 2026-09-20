@@ -1,43 +1,222 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../firebase_options.dart';
 import '../../features/chat/chat_screen.dart';
+import '../crypto/crypto_service.dart';
 import 'chat_service.dart';
 
-/// Top-level background message handler required by firebase_messaging
+final FlutterLocalNotificationsPlugin _localNotifications =
+    FlutterLocalNotificationsPlugin();
+
+/// Top-level background notification response handler for Direct Reply
 @pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Silent / background notification receipt
-  // Plaintext is NEVER in the payload. Only routing metadata is received.
+void notificationTapBackground(NotificationResponse response) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {}
+
+  // Handle direct inline reply from notification bar
+  if (response.actionId == 'reply_action') {
+    final replyText = response.input;
+    if (replyText == null || replyText.trim().isEmpty) return;
+
+    final payloadStr = response.payload;
+    if (payloadStr == null) return;
+
+    try {
+      final payload = jsonDecode(payloadStr) as Map<String, dynamic>;
+      final conversationId = payload['conversationId'] as String?;
+      final recipientId = payload['senderId'] as String?;
+
+      if (conversationId != null && recipientId != null) {
+        final chatService = ChatService();
+        await chatService.sendMessage(
+          conversationId: conversationId,
+          recipientUid: recipientId,
+          text: replyText.trim(),
+        );
+
+        // Cancel notification once reply is sent
+        if (response.id != null) {
+          await _localNotifications.cancel(id: response.id!);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error sending inline notification reply: $e');
+    }
+  }
 }
 
-/// NotificationService
+/// Top-level background message handler for FCM
 ///
-/// Production FCM Push Notification infrastructure for Astra Chat.
-///
-/// Features:
-/// - Secure per-user device token registration under `/users/{uid}/devices/{deviceId}`
-/// - Token refresh lifecycle synchronization
-/// - Token cleanup upon sign out
-/// - Safe notification payload routing (verifies participant identity before navigating)
-/// - Zero plaintext message content or encryption keys in notification payloads
+/// Decrypts encrypted message payloads locally on device and displays
+/// rich notifications with True Decrypted Text and Direct Reply action.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (_) {}
+
+  final data = message.data;
+  if (data['type'] != 'chat_message') return;
+
+  final ciphertext = data['ciphertext'] as String?;
+  final iv = data['iv'] as String?;
+  final conversationId = data['conversationId'] as String?;
+  final senderId = data['senderId'] as String?;
+  final senderName = data['senderName'] as String? ?? 'Partner';
+  final messageId = data['messageId'] as String? ?? '';
+  final keyVersion = int.tryParse(data['keyVersion'] as String? ?? '1') ?? 1;
+
+  String bodyText = 'New message received';
+
+  if (ciphertext != null &&
+      iv != null &&
+      conversationId != null &&
+      senderId != null) {
+    try {
+      final decrypted = await CryptoService.decryptMessage(
+        ciphertextBase64: ciphertext,
+        ivBase64: iv,
+        conversationId: conversationId,
+        messageId: messageId,
+        senderId: senderId,
+        keyVersion: keyVersion,
+      );
+      if (decrypted.isNotEmpty) {
+        bodyText = decrypted;
+      }
+    } catch (e) {
+      debugPrint('Background notification decryption fallback: $e');
+      bodyText = 'New encrypted message';
+    }
+  }
+
+  // Display rich local notification
+  const androidDetails = AndroidNotificationDetails(
+    'astra_chat_messages',
+    'Astra Messages',
+    channelDescription: 'End-to-end encrypted chat messages',
+    importance: Importance.max,
+    priority: Priority.high,
+    showWhen: true,
+    icon: 'ic_notification',
+    color: Color(0xFF6C5CE7),
+    category: AndroidNotificationCategory.message,
+    actions: [
+      AndroidNotificationAction(
+        'reply_action',
+        'Reply',
+        icon: DrawableResourceAndroidBitmap('ic_notification'),
+        inputs: [
+          AndroidNotificationActionInput(
+            label: 'Type a message...',
+          ),
+        ],
+      ),
+    ],
+  );
+
+  const iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+    categoryIdentifier: 'astra_chat_category',
+  );
+
+  const notificationDetails = NotificationDetails(
+    android: androidDetails,
+    iOS: iosDetails,
+  );
+
+  final notifId = messageId.hashCode;
+  final payloadJson = jsonEncode({
+    'conversationId': conversationId,
+    'senderId': senderId,
+    'senderName': senderName,
+    'type': 'chat_message',
+  });
+
+  await _localNotifications.show(
+    id: notifId,
+    title: senderName,
+    body: bodyText,
+    notificationDetails: notificationDetails,
+    payload: payloadJson,
+  );
+}
+
+/// Production NotificationService for Astra
 class NotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
   static StreamSubscription<String>? _tokenRefreshSub;
 
-  /// Initialize FCM listeners, permissions, and token registration
+  /// Initialize local notification plugins, FCM listeners, and tokens
   static Future<void> initialize() async {
     try {
-      // 1. Request notification permissions (iOS / Android 13+)
+      // 1. Initialize Flutter Local Notifications
+      const androidInit = AndroidInitializationSettings('ic_notification');
+      const darwinInit = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      const initSettings = InitializationSettings(
+        android: androidInit,
+        iOS: darwinInit,
+      );
+
+      await _localNotifications.initialize(
+        settings: initSettings,
+        onDidReceiveNotificationResponse: (response) {
+          if (response.payload != null) {
+            try {
+              final payload = jsonDecode(response.payload!) as Map<String, dynamic>;
+              handleNotificationRouting(payload);
+            } catch (_) {}
+          }
+        },
+        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+      );
+
+      // 2. Create Android high priority notification channel
+      if (Platform.isAndroid) {
+        final androidPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>();
+        if (androidPlugin != null) {
+          await androidPlugin.createNotificationChannel(
+            const AndroidNotificationChannel(
+              'astra_chat_messages',
+              'Astra Messages',
+              description: 'End-to-end encrypted chat messages',
+              importance: Importance.max,
+            ),
+          );
+        }
+      }
+
+      // 3. Request permissions (iOS and Android 13+)
       final settings = await _messaging.requestPermission(
         alert: true,
         badge: true,
@@ -49,20 +228,20 @@ class NotificationService {
         return;
       }
 
-      // 2. Set background message handler (Android only; iOS uses APNs background processing)
+      // 4. Set FCM background handler
       if (Platform.isAndroid) {
         try {
           FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
         } catch (_) {}
       }
 
-      // 3. Register current device token if user is signed in
+      // 5. Register current device token
       final currentUser = _auth.currentUser;
       if (currentUser != null) {
         await registerDeviceToken(currentUser.uid);
       }
 
-      // 4. Listen to token refreshes
+      // 6. Listen to token refreshes
       _tokenRefreshSub?.cancel();
       _tokenRefreshSub = _messaging.onTokenRefresh.listen((newToken) async {
         final uid = _auth.currentUser?.uid;
@@ -71,17 +250,18 @@ class NotificationService {
         }
       });
 
-      // 5. Handle foreground notifications
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        // Foreground notification received - UI updates naturally via Firestore stream
+      // 7. Handle foreground messages
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+        // Trigger on-device local notification even if app is foregrounded
+        await firebaseMessagingBackgroundHandler(message);
       });
 
-      // 6. Handle notification click when app is opened from background
+      // 8. Handle notification click when app is opened from background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         handleNotificationRouting(message.data);
       });
 
-      // 7. Handle notification click when app was launched from terminated state
+      // 9. Handle notification click when app was launched from terminated state
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
         handleNotificationRouting(initialMessage.data);
@@ -104,20 +284,25 @@ class NotificationService {
     return 'device_${DateTime.now().millisecondsSinceEpoch}';
   }
 
-  /// Register current device token under `/users/{uid}/devices/{deviceId}`
+  /// Register device token with robust iOS APNs polling retry loop
   static Future<void> registerDeviceToken(String uid) async {
     try {
       if (Platform.isIOS) {
-        final apnsToken = await _messaging.getAPNSToken();
-        if (apnsToken == null) {
-          // On iOS without APNs entitlement or before token arrival, avoid throwing apns-token-not-set
-          return;
+        // Wait up to 6 seconds for iOS APNs token to arrive from Apple
+        String? apnsToken;
+        for (int i = 0; i < 10; i++) {
+          apnsToken = await _messaging.getAPNSToken();
+          if (apnsToken != null) break;
+          await Future.delayed(const Duration(milliseconds: 600));
         }
       }
+
       final token = await _messaging.getToken();
       if (token == null || token.isEmpty) return;
       await _saveDeviceToken(uid, token);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('registerDeviceToken error: $e');
+    }
   }
 
   static Future<void> _saveDeviceToken(String uid, String token) async {
@@ -138,7 +323,7 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Remove current device token upon user logout
+  /// Remove device token upon logout
   static Future<void> unregisterDeviceToken(String uid) async {
     try {
       final deviceId = await getDeviceId();
@@ -151,13 +336,9 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Validate notification payload and route to the correct conversation
-  ///
-  /// Security:
-  /// - Validates payload type == 'chat_message'
-  /// - Verifies authenticated user is a legitimate participant of the conversation
-  /// - Rejects spoofed or unauthorized conversation IDs
-  static Future<void> handleNotificationRouting(Map<String, dynamic> data) async {
+  /// Route to chat screen when notification is tapped
+  static Future<void> handleNotificationRouting(
+      Map<String, dynamic> data) async {
     final type = data['type'] as String?;
     if (type != 'chat_message') return;
 
@@ -169,15 +350,14 @@ class NotificationService {
       return;
     }
 
-    // Security validation: verify current user is a participant using canonical ID
     final expectedConvId = ChatService.getConversationId(currentUid, senderId);
     if (conversationId != expectedConvId) {
       return;
     }
 
-    // Fetch sender profile details to populate ChatScreen header
     try {
-      final senderDoc = await _firestore.collection('users').doc(senderId).get();
+      final senderDoc =
+          await _firestore.collection('users').doc(senderId).get();
       final senderData = senderDoc.data() ?? {};
       final partnerName = (senderData['name'] as String?) ?? 'Friend';
       final partnerPhoto = senderData['photoUrl'] as String?;
@@ -195,9 +375,6 @@ class NotificationService {
   }
 
   /// Build standard generic FCM notification payload
-  ///
-  /// Strictly verifies that NO plaintext message text, ciphertext previews,
-  /// or cryptographic secrets are included.
   static Map<String, dynamic> buildGenericNotificationPayload({
     required String conversationId,
     required String senderId,
@@ -220,7 +397,6 @@ class NotificationService {
     };
   }
 
-  /// Dispose listeners
   static void dispose() {
     _tokenRefreshSub?.cancel();
   }

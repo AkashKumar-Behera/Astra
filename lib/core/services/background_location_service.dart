@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
@@ -52,8 +54,88 @@ void callbackDispatcher() {
 }
 
 class BackgroundLocationManager {
+  static StreamSubscription<Position>? _continuousStreamSub;
+
+  /// Start persistent live background location tracking
+  ///
+  /// - Android: Uses Android Foreground Service with persistent status notification
+  ///   to ensure OS never kills the GPS stream when minimized or screen locked.
+  /// - iOS: Uses AppleSettings with `allowBackgroundLocationUpdates: true` and
+  ///   `showBackgroundLocationIndicator: true` to keep GPS and network alive.
+  static Future<void> startContinuousTracking(String uid) async {
+    await stopContinuousTracking();
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      late final LocationSettings settings;
+
+      if (Platform.isAndroid) {
+        settings = AndroidSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+          forceLocationManager: false,
+          intervalDuration: const Duration(seconds: 15),
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'Astra Live Location Active',
+            notificationText: 'Sharing real-time cosmic coordinates with your partner',
+            enableWakeLock: true,
+            notificationIcon: AndroidResource(name: 'ic_notification'),
+          ),
+        );
+      } else if (Platform.isIOS) {
+        settings = AppleSettings(
+          accuracy: LocationAccuracy.high,
+          activityType: ActivityType.fitness,
+          distanceFilter: 10,
+          pauseLocationUpdatesAutomatically: false,
+          showBackgroundLocationIndicator: true,
+          allowBackgroundLocationUpdates: true,
+        );
+      } else {
+        settings = const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        );
+      }
+
+      _continuousStreamSub = Geolocator.getPositionStream(
+        locationSettings: settings,
+      ).listen((position) async {
+        try {
+          await LocationRtdbService.updateLocation(
+            uid: uid,
+            latitude: position.latitude,
+            longitude: position.longitude,
+          );
+        } catch (e) {
+          debugPrint('Error writing live background coordinates: $e');
+        }
+      }, onError: (err) {
+        debugPrint('Geolocator position stream error: $err');
+      });
+    } catch (e) {
+      debugPrint('BackgroundLocationManager.startContinuousTracking error: $e');
+    }
+  }
+
+  /// Stop continuous tracking stream
+  static Future<void> stopContinuousTracking() async {
+    await _continuousStreamSub?.cancel();
+    _continuousStreamSub = null;
+  }
+
+  /// Initialize periodic Workmanager fallback (Android only)
   static Future<void> initialize() async {
-    // Workmanager periodic background tasks are Android only
     if (!Platform.isAndroid) return;
 
     try {
@@ -64,11 +146,11 @@ class BackgroundLocationManager {
       await Workmanager().registerPeriodicTask(
         'astra_periodic_location_sync',
         kBackgroundLocationTask,
-        frequency: const Duration(minutes: 30),
+        frequency: const Duration(minutes: 15),
         constraints: Constraints(
           networkType: NetworkType.connected,
         ),
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       );
     } catch (_) {}
   }
