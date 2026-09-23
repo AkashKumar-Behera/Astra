@@ -76,14 +76,23 @@ widget_target.build_configurations.each do |config|
   ]
 end
 
-# 5. Embed App Extension in Main Runner Target
+# 5. Embed App Extension in Main Runner Target (must be BEFORE 'Thin Binary' to avoid Xcode build cycle)
 embed_extensions_phase = main_target.copy_files_build_phases.find do |phase|
   phase.name == 'Embed Foundation Extensions' || phase.dst_subfolder_spec.to_s == '13'
 end
 
 unless embed_extensions_phase
-  embed_extensions_phase = main_target.new_copy_files_build_phase('Embed Foundation Extensions')
+  embed_extensions_phase = project.new(Xcodeproj::Project::Object::PBXCopyFilesBuildPhase)
+  embed_extensions_phase.name = 'Embed Foundation Extensions'
   embed_extensions_phase.dst_subfolder_spec = '13' # PlugIns folder (String in latest xcodeproj)
+  
+  # Insert before 'Thin Binary' phase
+  thin_binary_index = main_target.build_phases.index { |p| p.is_a?(Xcodeproj::Project::Object::PBXShellScriptBuildPhase) && p.name == 'Thin Binary' }
+  if thin_binary_index
+    main_target.build_phases.insert(thin_binary_index, embed_extensions_phase)
+  else
+    main_target.build_phases << embed_extensions_phase
+  end
 end
 
 product_ref = widget_target.product_reference
