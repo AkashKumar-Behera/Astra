@@ -713,8 +713,9 @@ class _HomeScreenState extends State<HomeScreen>
                         : partners.first;
                     WidgetSyncService.syncFromPartnerData(
                       partnerData: activePartner,
-                      myLat: _currentPosition?.latitude,
-                      myLng: _currentPosition?.longitude,
+                      myLat: _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble(),
+                      myLng: _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble(),
+                      myData: userData,
                     );
                   }
                   return _buildDraggableTelemetrySheet(

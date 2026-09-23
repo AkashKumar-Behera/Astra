@@ -64,6 +64,30 @@
                 android:resource="@xml/friend_distance_widget_info" />
         </receiver>
 
+        <!-- Partner Status & Battery Widget Provider -->
+        <receiver
+            android:name=".PartnerStatusWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/partner_status_widget_info" />
+        </receiver>
+
+        <!-- Pair Orbit Hub Widget Provider -->
+        <receiver
+            android:name=".PairOrbitWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pair_orbit_widget_info" />
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

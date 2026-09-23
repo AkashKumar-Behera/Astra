@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialKeyguardLayout="@layout/pair_orbit_widget"
+    android:initialLayout="@layout/pair_orbit_widget"
+    android:minWidth="240dp"
+    android:minHeight="90dp"
+    android:previewImage="@mipmap/launcher_icon"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="900000"
+    android:widgetCategory="home_screen">
+</appwidget-provider>
