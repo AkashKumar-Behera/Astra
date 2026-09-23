@@ -27,35 +27,45 @@ void notificationTapBackground(NotificationResponse response) async {
     );
   } catch (_) {}
 
-  // Handle direct inline reply from notification bar
-  if (response.actionId == 'reply_action') {
-    final replyText = response.input;
-    if (replyText == null || replyText.trim().isEmpty) return;
+  await handleInlineReply(response);
+}
 
-    final payloadStr = response.payload;
-    if (payloadStr == null) return;
+/// Global helper to execute inline notification reply
+Future<void> handleInlineReply(NotificationResponse response) async {
+  if (response.actionId != 'reply_action') return;
+  final replyText = response.input;
+  if (replyText == null || replyText.trim().isEmpty) return;
 
-    try {
-      final payload = jsonDecode(payloadStr) as Map<String, dynamic>;
-      final conversationId = payload['conversationId'] as String?;
-      final recipientId = payload['senderId'] as String?;
+  final payloadStr = response.payload;
+  if (payloadStr == null) return;
 
-      if (conversationId != null && recipientId != null) {
-        final chatService = ChatService();
-        await chatService.sendMessage(
-          conversationId: conversationId,
-          recipientUid: recipientId,
-          text: replyText.trim(),
-        );
+  try {
+    final payload = jsonDecode(payloadStr) as Map<String, dynamic>;
+    final conversationId = payload['conversationId'] as String?;
+    final recipientId = payload['senderId'] as String?;
 
-        // Cancel notification once reply is sent
-        if (response.id != null) {
-          await _localNotifications.cancel(id: response.id!);
-        }
+    if (conversationId != null && recipientId != null) {
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance
+            .authStateChanges()
+            .firstWhere((u) => u != null)
+            .timeout(const Duration(seconds: 4), onTimeout: () => null);
       }
-    } catch (e) {
-      debugPrint('Error sending inline notification reply: $e');
+
+      final chatService = ChatService();
+      await chatService.sendMessage(
+        conversationId: conversationId,
+        recipientUid: recipientId,
+        text: replyText.trim(),
+      );
+
+      if (response.id != null) {
+        await _localNotifications.cancel(id: response.id!);
+      }
+      debugPrint('[NotificationService] Inline reply sent successfully: $replyText');
     }
+  } catch (e) {
+    debugPrint('[NotificationService] Error sending inline notification reply: $e');
   }
 }
 
@@ -229,6 +239,10 @@ class NotificationService {
       await _localNotifications.initialize(
         settings: initSettings,
         onDidReceiveNotificationResponse: (response) {
+          if (response.actionId == 'reply_action') {
+            handleInlineReply(response);
+            return;
+          }
           if (response.payload != null) {
             try {
               final payload = jsonDecode(response.payload!) as Map<String, dynamic>;

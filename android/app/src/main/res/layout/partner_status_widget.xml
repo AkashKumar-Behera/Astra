@@ -7,38 +7,55 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <!-- Top Header: Avatar + Name + Live Badge -->
+    <!-- Top Header: Avatar + Name + Live Pulse -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
-        <!-- Avatar Container -->
+        <!-- Circular Avatar Container -->
         <RelativeLayout
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="@drawable/widget_avatar_bg">
+            android:layout_width="46dp"
+            android:layout_height="46dp">
 
+            <RelativeLayout
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:background="@drawable/widget_avatar_bg">
+
+                <ImageView
+                    android:id="@+id/widget_status_avatar_image"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="Profile Picture"
+                    android:scaleType="centerCrop" />
+
+                <TextView
+                    android:id="@+id/widget_status_avatar_initial"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="✦"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </RelativeLayout>
+
+            <!-- Live Dot -->
             <ImageView
-                android:id="@+id/widget_status_avatar_image"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:contentDescription="Profile Picture"
-                android:scaleType="centerCrop" />
-
-            <TextView
-                android:id="@+id/widget_status_avatar_initial"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:text="A"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:id="@+id/widget_status_live_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:layout_marginTop="1dp"
+                android:layout_marginEnd="1dp"
+                android:src="@drawable/widget_live_dot"
+                android:contentDescription="Live" />
         </RelativeLayout>
 
-        <!-- Name & Status -->
+        <!-- Name & Last Seen -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -53,8 +70,8 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Partner"
-                android:textColor="#F3F0FF"
-                android:textSize="15sp"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -64,22 +81,13 @@
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:text="Astra Live"
+                android:text="Astra Live • Connected"
                 android:textColor="#9B95C9"
                 android:textSize="11sp" />
         </LinearLayout>
-
-        <!-- Live Pulse Dot -->
-        <ImageView
-            android:id="@+id/widget_status_live_dot"
-            android:layout_width="8dp"
-            android:layout_height="8dp"
-            android:layout_marginStart="6dp"
-            android:src="@drawable/widget_live_dot"
-            android:contentDescription="Live indicator" />
     </LinearLayout>
 
-    <!-- Center: Distance Display -->
+    <!-- Center: Glowing Distance Capsule -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -93,11 +101,16 @@
             android:id="@+id/widget_status_distance"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/widget_pill_bg"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="-- km away"
-            android:textColor="#C084FC"
-            android:textSize="22sp"
+            android:paddingStart="14dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="7dp"
+            android:text="⚡ -- km away"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -113,14 +126,13 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/widget_battery_bg"
-            android:drawablePadding="4dp"
-            android:paddingStart="8dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="4dp"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
             android:text="🔋 --%"
-            android:textColor="#A78BFA"
-            android:textSize="11sp"
+            android:textColor="#34D399"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <!-- Network Badge -->
@@ -130,13 +142,13 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:background="@drawable/widget_battery_bg"
-            android:paddingStart="8dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="4dp"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
             android:text="📶 Wi-Fi"
             android:textColor="#818CF8"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
     </LinearLayout>
 
 </LinearLayout>

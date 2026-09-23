@@ -57,6 +57,14 @@ class TelemetryService {
     return _rtdb.ref('telemetry/$partnerUid').onValue;
   }
 
+  static Future<int> getMyBatteryLevel() async {
+    try {
+      return await _battery.batteryLevel;
+    } catch (_) {
+      return 100;
+    }
+  }
+
   static void dispose() {
     _batterySub?.cancel();
     _connectivitySub?.cancel();

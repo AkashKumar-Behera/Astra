@@ -711,12 +711,40 @@ class _HomeScreenState extends State<HomeScreen>
                     final activePartner = _selectedPartnerIndex < partners.length
                         ? partners[_selectedPartnerIndex]
                         : partners.first;
-                    WidgetSyncService.syncFromPartnerData(
-                      partnerData: activePartner,
-                      myLat: _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble(),
-                      myLng: _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble(),
-                      myData: userData,
-                    );
+                    final partnerUid = (activePartner['uid'] as String?) ??
+                        (connectionUids.isNotEmpty ? connectionUids.first : null);
+
+                    if (partnerUid != null) {
+                      return StreamBuilder<DatabaseEvent>(
+                        stream: TelemetryService.streamPartnerTelemetry(partnerUid),
+                        builder: (context, telemSnap) {
+                          Map<String, dynamic>? partnerTelemetry;
+                          if (telemSnap.hasData && telemSnap.data!.snapshot.value != null) {
+                            try {
+                              partnerTelemetry = Map<String, dynamic>.from(
+                                telemSnap.data!.snapshot.value as Map,
+                              );
+                            } catch (_) {}
+                          }
+
+                          TelemetryService.getMyBatteryLevel().then((myBatt) {
+                            WidgetSyncService.syncFromPartnerData(
+                              partnerData: activePartner,
+                              myLat: _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble(),
+                              myLng: _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble(),
+                              partnerTelemetry: partnerTelemetry,
+                              myData: userData,
+                              myBattery: myBatt,
+                            );
+                          });
+
+                          return _buildDraggableTelemetrySheet(
+                            currentUid: currentUser.uid,
+                            partners: partners,
+                          );
+                        },
+                      );
+                    }
                   }
                   return _buildDraggableTelemetrySheet(
                     currentUid: currentUser.uid,

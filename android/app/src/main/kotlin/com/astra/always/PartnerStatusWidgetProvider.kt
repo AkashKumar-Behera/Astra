@@ -4,11 +4,8 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
-import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
-import java.io.File
 
 class PartnerStatusWidgetProvider : HomeWidgetProvider() {
 
@@ -27,10 +24,10 @@ class PartnerStatusWidgetProvider : HomeWidgetProvider() {
 
             // Distance
             val distance = widgetData.getString("friend_distance", "-- km") ?: "-- km"
-            views.setTextViewText(R.id.widget_status_distance, distance)
+            views.setTextViewText(R.id.widget_status_distance, "⚡ $distance")
 
             // Last Seen / Status
-            val status = widgetData.getString("friend_status", "Astra Live") ?: "Astra Live"
+            val status = widgetData.getString("friend_status", "Astra Live • Connected") ?: "Astra Live • Connected"
             views.setTextViewText(R.id.widget_status_last_seen, status)
 
             // Battery
@@ -42,36 +39,17 @@ class PartnerStatusWidgetProvider : HomeWidgetProvider() {
             views.setTextViewText(R.id.widget_status_network, network)
 
             // Avatar initial fallback
-            val initial = if (name.isNotBlank()) name.first().uppercase() else "P"
+            val initial = if (name.isNotBlank()) name.first().uppercase() else "✦"
             views.setTextViewText(R.id.widget_status_avatar_initial, initial)
 
-            // Avatar Image if available locally
+            // Circular Avatar Image if available locally
             val photoPath = widgetData.getString("friend_photo_path", null)
-            if (!photoPath.isNullOrEmpty()) {
-                val file = File(photoPath)
-                if (file.exists()) {
-                    try {
-                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                        if (bitmap != null) {
-                            views.setImageViewBitmap(R.id.widget_status_avatar_image, bitmap)
-                            views.setViewVisibility(R.id.widget_status_avatar_image, View.VISIBLE)
-                            views.setViewVisibility(R.id.widget_status_avatar_initial, View.GONE)
-                        } else {
-                            views.setViewVisibility(R.id.widget_status_avatar_image, View.GONE)
-                            views.setViewVisibility(R.id.widget_status_avatar_initial, View.VISIBLE)
-                        }
-                    } catch (_: Exception) {
-                        views.setViewVisibility(R.id.widget_status_avatar_image, View.GONE)
-                        views.setViewVisibility(R.id.widget_status_avatar_initial, View.VISIBLE)
-                    }
-                } else {
-                    views.setViewVisibility(R.id.widget_status_avatar_image, View.GONE)
-                    views.setViewVisibility(R.id.widget_status_avatar_initial, View.VISIBLE)
-                }
-            } else {
-                views.setViewVisibility(R.id.widget_status_avatar_image, View.GONE)
-                views.setViewVisibility(R.id.widget_status_avatar_initial, View.VISIBLE)
-            }
+            FriendDistanceWidgetProvider.bindCircularAvatar(
+                views,
+                R.id.widget_status_avatar_image,
+                R.id.widget_status_avatar_initial,
+                photoPath
+            )
 
             // Click Intent to open MainActivity
             val intent = Intent(context, MainActivity::class.java).apply {

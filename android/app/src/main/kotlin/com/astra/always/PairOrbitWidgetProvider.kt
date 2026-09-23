@@ -4,11 +4,8 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.BitmapFactory
-import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
-import java.io.File
 
 class PairOrbitWidgetProvider : HomeWidgetProvider() {
 
@@ -32,7 +29,12 @@ class PairOrbitWidgetProvider : HomeWidgetProvider() {
             views.setTextViewText(R.id.widget_my_avatar_initial, myInitial)
 
             val myPhotoPath = widgetData.getString("my_photo_path", null)
-            bindAvatar(views, R.id.widget_my_avatar_image, R.id.widget_my_avatar_initial, myPhotoPath)
+            FriendDistanceWidgetProvider.bindCircularAvatar(
+                views,
+                R.id.widget_my_avatar_image,
+                R.id.widget_my_avatar_initial,
+                myPhotoPath
+            )
 
             // --- Partner Info ---
             val friendName = widgetData.getString("friend_name", "Partner") ?: "Partner"
@@ -41,11 +43,16 @@ class PairOrbitWidgetProvider : HomeWidgetProvider() {
             val friendBattery = widgetData.getString("friend_battery", "🔋 --%") ?: "🔋 --%"
             views.setTextViewText(R.id.widget_partner_battery, friendBattery)
 
-            val friendInitial = if (friendName.isNotBlank()) friendName.first().uppercase() else "P"
+            val friendInitial = if (friendName.isNotBlank()) friendName.first().uppercase() else "✦"
             views.setTextViewText(R.id.widget_partner_avatar_initial, friendInitial)
 
             val friendPhotoPath = widgetData.getString("friend_photo_path", null)
-            bindAvatar(views, R.id.widget_partner_avatar_image, R.id.widget_partner_avatar_initial, friendPhotoPath)
+            FriendDistanceWidgetProvider.bindCircularAvatar(
+                views,
+                R.id.widget_partner_avatar_image,
+                R.id.widget_partner_avatar_initial,
+                friendPhotoPath
+            )
 
             // --- Distance Bridge ---
             val distance = widgetData.getString("friend_distance", "-- km") ?: "-- km"
@@ -69,29 +76,5 @@ class PairOrbitWidgetProvider : HomeWidgetProvider() {
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
-    }
-
-    private fun bindAvatar(
-        views: RemoteViews,
-        imageViewId: Int,
-        initialViewId: Int,
-        photoPath: String?
-    ) {
-        if (!photoPath.isNullOrEmpty()) {
-            val file = File(photoPath)
-            if (file.exists()) {
-                try {
-                    val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                    if (bitmap != null) {
-                        views.setImageViewBitmap(imageViewId, bitmap)
-                        views.setViewVisibility(imageViewId, View.VISIBLE)
-                        views.setViewVisibility(initialViewId, View.GONE)
-                        return
-                    }
-                } catch (_: Exception) {}
-            }
-        }
-        views.setViewVisibility(imageViewId, View.GONE)
-        views.setViewVisibility(initialViewId, View.VISIBLE)
     }
 }

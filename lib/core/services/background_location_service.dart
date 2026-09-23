@@ -82,14 +82,14 @@ class BackgroundLocationManager {
 
       if (Platform.isAndroid) {
         settings = AndroidSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
+          accuracy: LocationAccuracy.medium,
+          distanceFilter: 15,
           forceLocationManager: false,
-          intervalDuration: const Duration(seconds: 15),
+          intervalDuration: const Duration(seconds: 20),
           foregroundNotificationConfig: const ForegroundNotificationConfig(
-            notificationTitle: 'Astra Live Location Active',
-            notificationText: 'Sharing real-time cosmic coordinates with your partner',
-            enableWakeLock: true,
+            notificationTitle: '✦ Astra Orbit Active',
+            notificationText: 'Live location syncing with partner',
+            enableWakeLock: false,
             notificationIcon: AndroidResource(name: 'ic_notification'),
           ),
         );
