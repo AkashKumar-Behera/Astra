@@ -72,12 +72,12 @@ end
 
 # 5. Embed App Extension in Main Runner Target
 embed_extensions_phase = main_target.copy_files_build_phases.find do |phase|
-  phase.name == 'Embed Foundation Extensions' || phase.dst_subfolder_spec == 13
+  phase.name == 'Embed Foundation Extensions' || phase.dst_subfolder_spec.to_s == '13'
 end
 
 unless embed_extensions_phase
   embed_extensions_phase = main_target.new_copy_files_build_phase('Embed Foundation Extensions')
-  embed_extensions_phase.dst_subfolder_spec = 13 # PlugIns folder
+  embed_extensions_phase.dst_subfolder_spec = '13' # PlugIns folder (String in latest xcodeproj)
 end
 
 product_ref = widget_target.product_reference
