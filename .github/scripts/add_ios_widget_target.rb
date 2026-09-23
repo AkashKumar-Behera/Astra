@@ -71,6 +71,7 @@ widget_target.build_configurations.each do |config|
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = widget_bundle_id
   config.build_settings['INFOPLIST_FILE'] = "#{widget_name}/Info.plist"
   config.build_settings['SWIFT_VERSION'] = '5.0'
+  config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
   config.build_settings['CURRENT_PROJECT_VERSION'] = version_number
   config.build_settings['MARKETING_VERSION'] = version_name
   config.build_settings['PRODUCT_BUNDLE_PACKAGE_TYPE'] = 'XPC!'
