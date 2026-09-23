@@ -2,6 +2,8 @@ import WidgetKit
 import SwiftUI
 
 struct Provider: TimelineProvider {
+    typealias Entry = FriendDistanceEntry
+
     func placeholder(in context: Context) -> FriendDistanceEntry {
         FriendDistanceEntry(
             date: Date(),

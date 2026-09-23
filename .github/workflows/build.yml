@@ -163,6 +163,8 @@ jobs:
           TAG_NAME="${GITHUB_REF_NAME:-v1.0.0}"
           mkdir -p Payload
           cp -r build/ios/iphoneos/Runner.app Payload/
+          echo "=== Inspecting PlugIns Directory ==="
+          ls -laR Payload/Runner.app/PlugIns || echo "No PlugIns directory found!"
           zip -r "Astra-${TAG_NAME}-unsigned.ipa" Payload
 
       - name: Upload iOS IPA Artifact

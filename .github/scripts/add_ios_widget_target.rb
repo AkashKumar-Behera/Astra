@@ -120,6 +120,26 @@ build_file.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
 # 6. Add dependency from Runner to Widget
 main_target.add_dependency(widget_target)
 
+# 7. Add Widget Target to Runner Scheme Build Actions
+scheme_path = "#{project_path}/xcshareddata/xcschemes/Runner.xcscheme"
+if File.exist?(scheme_path)
+  begin
+    scheme = Xcodeproj::XCScheme.new(scheme_path)
+    has_entry = scheme.build_action.entries.any? do |entry|
+      entry.buildable_references.any? { |r| r.blueprint_name == widget_name }
+    end
+    
+    unless has_entry
+      entry = Xcodeproj::XCScheme::BuildAction::Entry.new(widget_target)
+      scheme.build_action.add_entry(entry)
+      scheme.save_as(project_path, 'Runner', true)
+      puts "Successfully added #{widget_name} to Runner.xcscheme build actions!"
+    end
+  rescue => e
+    puts "Warning: Could not update Runner.xcscheme: #{e.message}"
+  end
+end
+
 # Save project
 project.save
 puts "Successfully configured #{widget_name} target in #{project_path}!"
