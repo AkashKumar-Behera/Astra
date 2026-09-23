@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/services/auth_service.dart';
 import '../../core/theme/astra_theme.dart';
+import '../../core/widgets/astra_logo.dart';
 import '../home/home_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
@@ -261,21 +262,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AstraTheme.primary.withValues(alpha: 0.2),
-                        ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/images/Astra.png',
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 18),
-                          ),
-                        ),
+                      const AstraLogo(
+                        size: 32,
+                        animate: false,
+                        showGlow: false,
                       ),
                       const SizedBox(width: 10),
                       const Text(

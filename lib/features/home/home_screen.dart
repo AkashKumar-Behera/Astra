@@ -25,6 +25,7 @@ import '../calls/incoming_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/widget_sync_service.dart';
+import '../../core/widgets/astra_logo.dart';
 
 enum AstraMapStyle {
   nocturne,
@@ -515,20 +516,10 @@ class _HomeScreenState extends State<HomeScreen>
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Image.asset(
-                                'assets/images/transparent_logo.png',
-                                width: 24,
-                                height: 24,
-                                fit: BoxFit.contain,
-                                errorBuilder: (ctx, error, stackTrace) =>
-                                    Image.asset(
-                                      'assets/images/Astra.png',
-                                      width: 24,
-                                      height: 24,
-                                      fit: BoxFit.contain,
-                                      errorBuilder: (c, e, s) =>
-                                          const Icon(Icons.auto_awesome, color: AstraTheme.primaryLight, size: 20),
-                                    ),
+                              const AstraLogo(
+                                size: 24,
+                                animate: false,
+                                showGlow: false,
                               ),
                               const SizedBox(width: 8),
                               const Text(

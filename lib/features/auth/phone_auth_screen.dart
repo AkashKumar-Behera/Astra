@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/astra_theme.dart';
+import '../../core/widgets/astra_logo.dart';
 import 'otp_verification_screen.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
@@ -189,34 +190,12 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                       children: [
                         const SizedBox(height: 20),
 
-                        // Glowing Astra Logo
-                        Center(
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                colors: [AstraTheme.primary, AstraTheme.secondary],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AstraTheme.primary.withValues(alpha: 0.4),
-                                  blurRadius: 30,
-                                  spreadRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/images/Astra.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.auto_awesome, color: Colors.white, size: 40),
-                              ),
-                            ),
+                        // Clean Astra Vector Shape Logo
+                        const Center(
+                          child: AstraLogo(
+                            size: 84,
+                            animate: true,
+                            showGlow: true,
                           ),
                         ),
 
