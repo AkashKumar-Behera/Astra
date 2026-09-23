@@ -1,7 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
-import 'dart:ui';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -171,8 +168,8 @@ class _SplashScreenState extends State<SplashScreen>
 
                 // Changelog / Description
                 Text(
-                  updateInfo.changelog?.isNotEmpty == true
-                      ? updateInfo.changelog!
+                  updateInfo.releaseNotes?.isNotEmpty == true
+                      ? updateInfo.releaseNotes!
                       : 'A new version of Astra is ready with performance improvements and new features.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
@@ -225,7 +222,10 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         child: ElevatedButton(
                           onPressed: () async {
-                            final uri = Uri.parse(updateInfo.downloadUrl);
+                            final targetUrl = updateInfo.apkDownloadUrl ??
+                                updateInfo.releasePageUrl ??
+                                'https://astra.croto.in';
+                            final uri = Uri.parse(targetUrl);
                             if (await canLaunchUrl(uri)) {
                               await launchUrl(uri, mode: LaunchMode.externalApplication);
                             }
