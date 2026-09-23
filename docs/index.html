@@ -224,60 +224,75 @@
 
     /* Horizontal Version Selector */
     .version-selector-container {
-      margin-bottom: 22px;
+      margin-bottom: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 12px 14px;
+      backdrop-filter: blur(12px);
     }
 
     .version-selector-header {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--muted);
-      margin-bottom: 8px;
+      letter-spacing: 0.9px;
+      color: #a5a2bd;
+      margin-bottom: 10px;
       display: flex;
+      align-items: center;
       justify-content: space-between;
     }
 
     .version-scroller {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       overflow-x: auto;
-      padding-bottom: 6px;
+      padding-bottom: 4px;
+      scrollbar-width: none; /* Hide scrollbar for ultra-clean pill bar */
+      -ms-overflow-style: none;
+    }
+
+    .version-scroller::-webkit-scrollbar {
+      display: none;
     }
 
     .ver-chip {
-      background: rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 6px 14px;
-      display: flex;
+      border-radius: 10px;
+      padding: 6px 12px;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       cursor: pointer;
       flex-shrink: 0;
-      transition: all 0.2s;
+      transition: all 0.18s ease;
+      user-select: none;
     }
 
     .ver-chip:hover {
-      background: rgba(124, 92, 252, 0.15);
-      border-color: rgba(124, 92, 252, 0.4);
+      background: rgba(124, 92, 252, 0.18);
+      border-color: rgba(124, 92, 252, 0.5);
+      transform: translateY(-1px);
     }
 
     .ver-chip.active {
-      background: rgba(124, 92, 252, 0.28);
-      border-color: var(--accent);
-      box-shadow: 0 0 16px rgba(124, 92, 252, 0.4);
+      background: linear-gradient(135deg, rgba(124, 92, 252, 0.35) 0%, rgba(81, 48, 216, 0.45) 100%);
+      border-color: #8B6BFF;
+      box-shadow: 0 4px 14px rgba(124, 92, 252, 0.35);
     }
 
     .ver-chip-tag {
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 700;
       color: #fff;
     }
 
     .ver-chip-date {
       font-size: 10px;
-      color: var(--muted);
+      color: #94A3B8;
+      font-weight: 500;
     }
 
     /* DOWNLOAD BUTTONS GROUP WITH ARCHITECTURE DROPDOWNS */
@@ -355,16 +370,16 @@
     /* Proper Architecture Dropdown Menu */
     .dropdown-menu {
       position: absolute;
-      top: calc(100% + 10px);
+      top: calc(100% + 8px);
       left: 0;
-      min-width: 310px;
-      background: rgba(16, 10, 34, 0.96);
-      backdrop-filter: blur(28px);
-      -webkit-backdrop-filter: blur(28px);
-      border: 1px solid rgba(124, 92, 252, 0.45);
-      border-radius: 18px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 35px rgba(124, 92, 252, 0.25);
-      padding: 10px;
+      min-width: 300px;
+      background: rgba(14, 9, 30, 0.94);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(124, 92, 252, 0.35);
+      border-radius: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 25px rgba(124, 92, 252, 0.18);
+      padding: 8px;
       display: none;
       flex-direction: column;
       gap: 6px;
@@ -374,19 +389,19 @@
     .dropdown-menu::before {
       content: '';
       position: absolute;
-      top: -6px;
+      top: -5px;
       left: 28px;
-      width: 12px;
-      height: 12px;
-      background: rgba(16, 10, 34, 0.96);
-      border-left: 1px solid rgba(124, 92, 252, 0.45);
-      border-top: 1px solid rgba(124, 92, 252, 0.45);
+      width: 10px;
+      height: 10px;
+      background: rgba(14, 9, 30, 0.94);
+      border-left: 1px solid rgba(124, 92, 252, 0.35);
+      border-top: 1px solid rgba(124, 92, 252, 0.35);
       transform: rotate(45deg);
     }
 
     .dropdown-menu.open {
       display: flex;
-      animation: menuFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: menuFade 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes menuFade {
@@ -987,8 +1002,8 @@
         </div>
         <div class="quick-stats">
           <div><strong>4.9 ★</strong><span>Rating</span></div>
-          <div><strong>~20 MB</strong><span>Lean APK</span></div>
-          <div><strong>v1.0.4</strong><span>Current Build</span></div>
+          <div><strong id="stat-apk-size">~20 MB</strong><span>Lean APK</span></div>
+          <div><strong id="stat-ver-name">v1.0.13</strong><span>Current Build</span></div>
         </div>
       </aside>
     </section>
@@ -1151,6 +1166,8 @@
       const activeTitle = document.getElementById('active-release-title');
       if (activeTitle) activeTitle.innerText = `${rel.tag_name} ${isBeta ? '(Beta)' : '(Stable)'}`;
       document.getElementById('notes-ver-name').innerText = rel.tag_name;
+      const statVer = document.getElementById('stat-ver-name');
+      if (statVer) statVer.innerText = rel.tag_name;
 
       if (rel.published_at) {
         const fullDate = new Date(rel.published_at).toLocaleDateString('en-US', {
@@ -1178,10 +1195,14 @@
       if (apkAsset) {
         const mb = (apkAsset.size / (1024 * 1024)).toFixed(1);
         labelAndroid.innerText = `${rel.tag_name} APK (${mb} MB) ▾`;
+        const statSize = document.getElementById('stat-apk-size');
+        if (statSize) statSize.innerText = `~${mb} MB`;
         linkApkPrimary.href = apkAsset.browser_download_url;
         linkApkFallback.href = anyApk ? anyApk.browser_download_url : apkAsset.browser_download_url;
       } else {
         labelAndroid.innerText = 'View on GitHub ▾';
+        const statSize = document.getElementById('stat-apk-size');
+        if (statSize) statSize.innerText = '-- MB';
         linkApkPrimary.href = rel.html_url;
         linkApkFallback.href = rel.html_url;
       }
