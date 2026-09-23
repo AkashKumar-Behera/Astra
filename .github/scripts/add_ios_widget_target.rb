@@ -75,6 +75,9 @@ widget_target.build_configurations.each do |config|
   config.build_settings['CURRENT_PROJECT_VERSION'] = version_number
   config.build_settings['MARKETING_VERSION'] = version_name
   config.build_settings['PRODUCT_BUNDLE_PACKAGE_TYPE'] = 'XPC!'
+  config.build_settings['TARGETED_DEVICE_FAMILY'] = '1,2'
+  config.build_settings['SDKROOT'] = 'iphoneos'
+  config.build_settings['SUPPORTED_PLATFORMS'] = 'iphoneos'
   config.build_settings['DEVELOPMENT_TEAM'] = ''
   config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
   config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'

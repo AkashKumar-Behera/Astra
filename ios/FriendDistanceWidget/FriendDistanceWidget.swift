@@ -113,6 +113,12 @@ extension View {
 }
 
 @main
+struct AstraWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        FriendDistanceWidget()
+    }
+}
+
 struct FriendDistanceWidget: Widget {
     let kind: String = "FriendDistanceWidget"
 
@@ -120,7 +126,7 @@ struct FriendDistanceWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             FriendDistanceWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Friend Distance")
+        .configurationDisplayName("Astra")
         .description("Track your connected friend's real-time distance and status.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
