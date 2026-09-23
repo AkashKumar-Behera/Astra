@@ -171,11 +171,17 @@
     /* HERO */
     .hero {
       display: grid;
-      grid-template-columns: 1fr 420px;
-      gap: 40px;
+      grid-template-columns: 1fr 340px;
+      gap: 36px;
       align-items: center;
       margin-top: 12px;
       margin-bottom: 50px;
+      width: 100%;
+    }
+
+    .hero-left {
+      min-width: 0; /* Prevents flex/grid children from overflowing */
+      width: 100%;
     }
 
     .badge {
@@ -230,6 +236,8 @@
       border-radius: 16px;
       padding: 12px 14px;
       backdrop-filter: blur(12px);
+      max-width: 100%;
+      overflow: hidden;
     }
 
     .version-selector-header {
@@ -248,7 +256,11 @@
       display: flex;
       gap: 8px;
       overflow-x: auto;
-      padding-bottom: 4px;
+      padding-bottom: 6px;
+      width: 100%;
+      max-width: 100%;
+      scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
       scrollbar-width: none; /* Hide scrollbar for ultra-clean pill bar */
       -ms-overflow-style: none;
     }
