@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'core/services/background_location_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/websocket_service.dart';
+import 'core/services/widget_sync_service.dart';
 import 'core/theme/astra_theme.dart';
 import 'features/splash/splash_screen.dart';
 
@@ -31,6 +32,13 @@ void main() async {
     await BackgroundLocationManager.initialize();
   } catch (e) {
     debugPrint('BackgroundLocationManager.initialize ignored error: $e');
+  }
+
+  // Initialize Home Screen Widget Sync
+  try {
+    await WidgetSyncService.init();
+  } catch (e) {
+    debugPrint('WidgetSyncService.init error: $e');
   }
 
   // Initialize Astra VPS WebSocket Service (Live sub-50ms sync)

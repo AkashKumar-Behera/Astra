@@ -24,6 +24,7 @@ import '../../core/services/background_location_service.dart';
 import '../calls/incoming_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
 import '../settings/settings_screen.dart';
+import '../../core/services/widget_sync_service.dart';
 
 enum AstraMapStyle {
   nocturne,
@@ -671,6 +672,16 @@ class _HomeScreenState extends State<HomeScreen>
                 future: _fetchPartnersData(connectionUids),
                 builder: (context, partnersSnap) {
                   final partners = partnersSnap.data ?? [];
+                  if (partners.isNotEmpty) {
+                    final activePartner = _selectedPartnerIndex < partners.length
+                        ? partners[_selectedPartnerIndex]
+                        : partners.first;
+                    WidgetSyncService.syncFromPartnerData(
+                      partnerData: activePartner,
+                      myLat: _currentPosition?.latitude,
+                      myLng: _currentPosition?.longitude,
+                    );
+                  }
                   return _buildDraggableTelemetrySheet(
                     currentUid: currentUser.uid,
                     partners: partners,

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialKeyguardLayout="@layout/friend_distance_widget"
+    android:initialLayout="@layout/friend_distance_widget"
+    android:minWidth="180dp"
+    android:minHeight="70dp"
+    android:previewImage="@mipmap/launcher_icon"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="900000"
+    android:widgetCategory="home_screen">
+</appwidget-provider>
