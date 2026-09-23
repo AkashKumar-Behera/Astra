@@ -120,9 +120,11 @@ class WidgetSyncService {
     required double? myLat,
     required double? myLng,
   }) {
-    final name = (partnerData['displayName'] as String?) ??
-        (partnerData['phoneNumber'] as String?) ??
-        'Friend';
+    final name = (partnerData['name'] as String?)?.trim().isNotEmpty == true
+        ? (partnerData['name'] as String).trim()
+        : ((partnerData['displayName'] as String?)?.trim().isNotEmpty == true
+            ? (partnerData['displayName'] as String).trim()
+            : ((partnerData['phoneNumber'] as String?) ?? 'Friend'));
     final photoUrl = partnerData['photoUrl'] as String?;
     final pLat = (partnerData['latitude'] as num?)?.toDouble();
     final pLng = (partnerData['longitude'] as num?)?.toDouble();

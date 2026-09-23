@@ -263,11 +263,24 @@ class _HomeScreenState extends State<HomeScreen>
       _positionStreamSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
-          distanceFilter: 3,
+          distanceFilter: 5,
         ),
-      ).listen((pos) {
+      ).listen((pos) async {
         if (mounted) {
           setState(() => _currentPosition = pos);
+        }
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        if (uid != null) {
+          await LocationRtdbService.updateLocation(
+            uid: uid,
+            latitude: pos.latitude,
+            longitude: pos.longitude,
+          );
+          FirebaseFirestore.instance.collection('users').doc(uid).update({
+            'latitude': pos.latitude,
+            'longitude': pos.longitude,
+            'lastSeen': FieldValue.serverTimestamp(),
+          }).catchError((_) {});
         }
       });
 
@@ -278,6 +291,11 @@ class _HomeScreenState extends State<HomeScreen>
           latitude: position.latitude,
           longitude: position.longitude,
         );
+        FirebaseFirestore.instance.collection('users').doc(uid).update({
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'lastSeen': FieldValue.serverTimestamp(),
+        }).catchError((_) {});
       }
     } catch (_) {}
   }
@@ -452,10 +470,36 @@ class _HomeScreenState extends State<HomeScreen>
   Future<List<Map<String, dynamic>>> _fetchPartnersData(List<String> uids) async {
     if (uids.isEmpty) return [];
     try {
-      final docs = await Future.wait(
-        uids.map((uid) => FirebaseFirestore.instance.collection('users').doc(uid).get()),
+      final results = await Future.wait(
+        uids.map((uid) async {
+          try {
+            final docFuture = FirebaseFirestore.instance.collection('users').doc(uid).get();
+            final rtdbFuture = LocationRtdbService.getPartnerLocation(uid);
+
+            final doc = await docFuture;
+            final rtdbLoc = await rtdbFuture;
+
+            if (!doc.exists || doc.data() == null) return null;
+            final data = Map<String, dynamic>.from(doc.data()!);
+
+            // Ensure 'name' is cleanly populated
+            if (data['name'] == null && data['displayName'] != null) {
+              data['name'] = data['displayName'];
+            }
+
+            // Merge real-time RTDB coordinates
+            if (rtdbLoc != null) {
+              if (rtdbLoc['latitude'] != null) data['latitude'] = rtdbLoc['latitude'];
+              if (rtdbLoc['longitude'] != null) data['longitude'] = rtdbLoc['longitude'];
+              if (rtdbLoc['updatedAt'] != null) data['updatedAt'] = rtdbLoc['updatedAt'];
+            }
+            return data;
+          } catch (_) {
+            return null;
+          }
+        }),
       );
-      return docs.where((d) => d.exists && d.data() != null).map((d) => d.data()!).toList();
+      return results.whereType<Map<String, dynamic>>().toList();
     } catch (_) {
       return [];
     }
