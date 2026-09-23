@@ -29,6 +29,10 @@ widget_target = project.new_target(
   :swift
 )
 
+# Explicitly ensure product reference name and path are set
+widget_target.product_reference.name = "#{widget_name}.appex"
+widget_target.product_reference.path = "#{widget_name}.appex"
+
 # 2. Add files to Widget Group
 widget_group = project.main_group.find_subpath(widget_name, true)
 widget_group.set_source_tree('<group>')
@@ -50,6 +54,7 @@ widget_target.frameworks_build_phase.add_file_reference(
 
 # 4. Configure Build Settings
 widget_target.build_configurations.each do |config|
+  config.build_settings['PRODUCT_NAME'] = widget_name
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = widget_bundle_id
   config.build_settings['INFOPLIST_FILE'] = "#{widget_name}/Info.plist"
   config.build_settings['SWIFT_VERSION'] = '5.0'
@@ -63,6 +68,7 @@ widget_target.build_configurations.each do |config|
   config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = config.name == 'Release' ? '-O' : '-Onone'
   config.build_settings['ENABLE_BITCODE'] = 'NO'
   config.build_settings['SKIP_INSTALL'] = 'YES'
+  config.build_settings['WRAPPER_EXTENSION'] = 'appex'
   config.build_settings['LD_RUNPATH_SEARCH_PATHS'] = [
     '$(inherited)',
     '@executable_path/Frameworks',
