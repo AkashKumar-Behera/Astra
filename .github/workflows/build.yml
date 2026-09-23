@@ -131,6 +131,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Configure iOS Widget Extension Target
+        run: |
+          gem install xcodeproj --no-document
+          ruby .github/scripts/add_ios_widget_target.rb
+
       - name: Build iOS without code signing
         env:
           APP_SECRET: ${{ secrets.APP_SECRET }}
