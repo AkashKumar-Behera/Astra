@@ -53,13 +53,27 @@ widget_target.frameworks_build_phase.add_file_reference(
 )
 
 # 4. Configure Build Settings
+version_name = '1.0.0'
+version_number = '1'
+
+if File.exist?('pubspec.yaml')
+  pubspec_content = File.read('pubspec.yaml')
+  if pubspec_content =~ /^version:\s*([0-9\.]+)\+([0-9]+)/
+    version_name = $1
+    version_number = $2
+  end
+end
+
+puts "Setting Widget Target version: #{version_name} (Build: #{version_number})"
+
 widget_target.build_configurations.each do |config|
   config.build_settings['PRODUCT_NAME'] = widget_name
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = widget_bundle_id
   config.build_settings['INFOPLIST_FILE'] = "#{widget_name}/Info.plist"
   config.build_settings['SWIFT_VERSION'] = '5.0'
-  config.build_settings['CURRENT_PROJECT_VERSION'] = '$(FLUTTER_BUILD_NUMBER)'
-  config.build_settings['MARKETING_VERSION'] = '$(FLUTTER_BUILD_NAME)'
+  config.build_settings['CURRENT_PROJECT_VERSION'] = version_number
+  config.build_settings['MARKETING_VERSION'] = version_name
+  config.build_settings['PRODUCT_BUNDLE_PACKAGE_TYPE'] = 'XPC!'
   config.build_settings['DEVELOPMENT_TEAM'] = ''
   config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
   config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
