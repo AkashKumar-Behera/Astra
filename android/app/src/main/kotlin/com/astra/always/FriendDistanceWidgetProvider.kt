@@ -93,17 +93,22 @@ class FriendDistanceWidgetProvider : HomeWidgetProvider() {
         }
 
         fun toCircularBitmap(bitmap: Bitmap): Bitmap {
-            val size = Math.min(bitmap.width, bitmap.height)
-            val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val srcWidth = bitmap.width
+            val srcHeight = bitmap.height
+            val minEdge = Math.min(srcWidth, srcHeight)
+
+            // 1. Center-crop to exact square to prevent ANY stretching or squashing
+            val xOffset = (srcWidth - minEdge) / 2
+            val yOffset = (srcHeight - minEdge) / 2
+            val squareBitmap = Bitmap.createBitmap(bitmap, xOffset, yOffset, minEdge, minEdge)
+
+            // 2. Render anti-aliased circular bitmap
+            val output = Bitmap.createBitmap(minEdge, minEdge, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(output)
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-            val shader = BitmapShader(
-                Bitmap.createScaledBitmap(bitmap, size, size, false),
-                Shader.TileMode.CLAMP,
-                Shader.TileMode.CLAMP
-            )
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+            val shader = BitmapShader(squareBitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
             paint.shader = shader
-            val radius = size / 2f
+            val radius = minEdge / 2f
             canvas.drawCircle(radius, radius, radius, paint)
             return output
         }
