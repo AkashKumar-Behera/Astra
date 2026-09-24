@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,8 +7,42 @@ import 'core/services/background_location_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/websocket_service.dart';
 import 'core/services/widget_sync_service.dart';
+import 'core/services/webrtc_call_service.dart';
 import 'core/theme/astra_theme.dart';
+import 'features/calls/incoming_call_screen.dart';
 import 'features/splash/splash_screen.dart';
+
+StreamSubscription? _globalCallSub;
+
+void _initGlobalCallListener(String myUid) {
+  _globalCallSub?.cancel();
+  _globalCallSub = WebRtcCallService.listenToIncomingCalls(myUid).listen((callData) {
+    if (callData != null) {
+      final callId = callData['callId'] as String? ?? '';
+      final callerUid = callData['callerUid'] as String? ?? '';
+      final callerName = callData['callerName'] as String? ?? 'Partner';
+      final callerPhoto = callData['callerPhoto'] as String?;
+      final typeStr = callData['type'] as String? ?? 'audio';
+      final type = typeStr == 'video' ? CallType.video : CallType.audio;
+
+      if (WebRtcCallService.instance.status == CallStatus.idle && callId.isNotEmpty) {
+        WebRtcCallService.instance.status = CallStatus.ringing;
+        NotificationService.navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => IncomingCallScreen(
+              callId: callId,
+              callerUid: callerUid,
+              callerName: callerName,
+              callerPhoto: callerPhoto,
+              type: type,
+              myUid: myUid,
+            ),
+          ),
+        );
+      }
+    }
+  });
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,17 +76,20 @@ void main() async {
     debugPrint('WidgetSyncService.init error: $e');
   }
 
-  // Initialize Astra VPS WebSocket Service (Live sub-50ms sync)
+  // Initialize Astra VPS WebSocket Service & Global Incoming Call Listener
   try {
     FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
         WebSocketService.connect();
+        _initGlobalCallListener(user.uid);
       } else {
         WebSocketService.disconnect();
+        _globalCallSub?.cancel();
+        _globalCallSub = null;
       }
     });
   } catch (e) {
-    debugPrint('WebSocketService auth listener error: $e');
+    debugPrint('Auth listener error: $e');
   }
 
   runApp(const AstraApp());

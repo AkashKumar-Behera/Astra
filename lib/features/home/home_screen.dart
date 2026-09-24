@@ -56,7 +56,6 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   Position? _currentPosition;
   StreamSubscription<Position>? _positionStreamSub;
-  StreamSubscription? _incomingCallSub;
   late AnimationController _pulseController;
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
@@ -83,32 +82,6 @@ class _HomeScreenState extends State<HomeScreen>
       TelemetryService.startTelemetrySync(uid);
       LocationRtdbService.startLocationRequestListener(uid);
       BackgroundLocationManager.startContinuousTracking(uid);
-
-      _incomingCallSub = WebRtcCallService.listenToIncomingCalls(uid).listen((callData) {
-        if (callData != null && mounted) {
-          final callId = callData['callId'] as String? ?? '';
-          final callerUid = callData['callerUid'] as String? ?? '';
-          final callerName = callData['callerName'] as String? ?? 'Partner';
-          final callerPhoto = callData['callerPhoto'] as String?;
-          final typeStr = callData['type'] as String? ?? 'audio';
-          final type = typeStr == 'video' ? CallType.video : CallType.audio;
-
-          if (WebRtcCallService.instance.status == CallStatus.idle) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => IncomingCallScreen(
-                  callId: callId,
-                  callerUid: callerUid,
-                  callerName: callerName,
-                  callerPhoto: callerPhoto,
-                  type: type,
-                  myUid: uid,
-                ),
-              ),
-            );
-          }
-        }
-      });
     }
   }
 
@@ -137,7 +110,6 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _positionStreamSub?.cancel();
-    _incomingCallSub?.cancel();
     LocationRtdbService.disposeLocationRequestListener();
     TelemetryService.dispose();
     PresenceService.instance.dispose();

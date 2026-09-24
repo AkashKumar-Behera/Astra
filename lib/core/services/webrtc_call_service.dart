@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 
 enum CallType { audio, video }
@@ -101,6 +102,9 @@ class WebRtcCallService {
   StreamSubscription<DatabaseEvent>? _callSub;
   StreamSubscription<DatabaseEvent>? _iceCandidateSub;
 
+  final List<RTCIceCandidate> _earlyIceCandidates = [];
+  bool _isRemoteDescriptionSet = false;
+
   final StreamController<CallStatus> _statusController = StreamController<CallStatus>.broadcast();
   Stream<CallStatus> get onStatusChanged => _statusController.stream;
 
@@ -117,20 +121,39 @@ class WebRtcCallService {
     }
   }
 
+  Future<bool> _requestPermissions(CallType type) async {
+    try {
+      final micStatus = await Permission.microphone.request();
+      if (micStatus.isDenied || micStatus.isPermanentlyDenied) {
+        debugPrint('[WebRtcCallService] Microphone permission denied');
+        return false;
+      }
+
+      if (type == CallType.video) {
+        final camStatus = await Permission.camera.request();
+        if (camStatus.isDenied || camStatus.isPermanentlyDenied) {
+          debugPrint('[WebRtcCallService] Camera permission denied');
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[WebRtcCallService] Permission request error: $e');
+      return true;
+    }
+  }
+
   Future<Map<String, dynamic>> _getIceConfiguration() async {
     final fallbackConfig = {
       'iceServers': [
         {'urls': 'stun:stun.l.google.com:19302'},
         {'urls': 'stun:stun1.l.google.com:19302'},
-        {
-          'urls': [
-            'stun:stun.cloudflare.com:3478',
-            'turn:turn.cloudflare.com:3478?transport=udp',
-            'turn:turn.cloudflare.com:3478?transport=tcp',
-            'turns:turn.cloudflare.com:5349?transport=tcp',
-          ],
-        }
-      ]
+        {'urls': 'stun:stun2.l.google.com:19302'},
+        {'urls': 'stun:stun3.l.google.com:19302'},
+        {'urls': 'stun:stun4.l.google.com:19302'},
+        {'urls': 'stun:stun.cloudflare.com:3478'},
+      ],
+      'sdpSemantics': 'unified-plan',
     };
 
     if (_cfTurnKeyId.isEmpty || _cfApiToken.isEmpty) return fallbackConfig;
@@ -153,7 +176,16 @@ class WebRtcCallService {
           List<dynamic> iceList = [];
           if (rawIce is List) iceList = rawIce;
           if (rawIce is Map) iceList = [rawIce];
-          if (iceList.isNotEmpty) return {'iceServers': iceList};
+          if (iceList.isNotEmpty) {
+            return {
+              'iceServers': [
+                ...iceList,
+                {'urls': 'stun:stun.l.google.com:19302'},
+                {'urls': 'stun:stun1.l.google.com:19302'},
+              ],
+              'sdpSemantics': 'unified-plan',
+            };
+          }
         }
       }
     } catch (_) {}
@@ -169,12 +201,20 @@ class WebRtcCallService {
     String? partnerPhoto,
     required CallType type,
   }) async {
+    final hasPerms = await _requestPermissions(type);
+    if (!hasPerms) {
+      _updateStatus(CallStatus.failed);
+      return;
+    }
+
     await initRenderers();
     currentRole = CallRole.caller;
     currentCallType = type;
     currentPartnerUid = partnerUid;
     currentPartnerName = partnerName;
     currentPartnerPhoto = partnerPhoto;
+    _isRemoteDescriptionSet = false;
+    _earlyIceCandidates.clear();
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final callId = 'call_${myUid}_${partnerUid}_$timestamp';
@@ -182,7 +222,7 @@ class WebRtcCallService {
 
     _updateStatus(CallStatus.calling);
 
-    // 1. Get media streams (Opus HD Audio + VP9 30-60fps adaptive video)
+    // 1. Get media streams (Opus HD Audio + adaptive video)
     final mediaConstraints = <String, dynamic>{
       'audio': {
         'echoCancellation': true,
@@ -211,67 +251,87 @@ class WebRtcCallService {
     try {
       _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       localRenderer.srcObject = _localStream;
+
+      // Set audio speakerphone defaults
+      isSpeakerOn = type == CallType.video;
+      _localStream?.getAudioTracks().forEach((track) {
+        track.enableSpeakerphone(isSpeakerOn);
+      });
     } catch (e) {
-      debugPrint('Error getting user media: $e');
+      debugPrint('[WebRtcCallService] Error getting user media: $e');
       _updateStatus(CallStatus.failed);
       return;
     }
 
-    // 2. Create peer connection
-    final config = await _getIceConfiguration();
-    _peerConnection = await createPeerConnection(config);
+    try {
+      // 2. Create peer connection
+      final config = await _getIceConfiguration();
+      _peerConnection = await createPeerConnection(config);
 
-    _localStream?.getTracks().forEach((track) {
-      _peerConnection?.addTrack(track, _localStream!);
-    });
-
-    _peerConnection?.onTrack = (RTCTrackEvent event) {
-      if (event.streams.isNotEmpty) {
-        _remoteStream = event.streams[0];
-        remoteRenderer.srcObject = _remoteStream;
-      }
-    };
-
-    _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
-      _rtdb.ref('calls/$callId/caller_candidates').push().set({
-        'serverCandidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMlineIndex': candidate.sdpMLineIndex,
+      _localStream?.getTracks().forEach((track) {
+        _peerConnection?.addTrack(track, _localStream!);
       });
-    };
 
-    // 3. Create Offer
-    final offer = await _peerConnection!.createOffer();
-    await _peerConnection!.setLocalDescription(offer);
+      _peerConnection?.onTrack = (RTCTrackEvent event) {
+        if (event.streams.isNotEmpty) {
+          _remoteStream = event.streams[0];
+          remoteRenderer.srcObject = _remoteStream;
+        }
+      };
 
-    // 4. Save call in RTDB
-    await _rtdb.ref('calls/$callId').set({
-      'callId': callId,
-      'callerUid': myUid,
-      'receiverUid': partnerUid,
-      'partnerName': partnerName,
-      'type': type.name,
-      'status': 'calling',
-      'offer': {
-        'sdp': offer.sdp,
-        'type': offer.type,
-      },
-      'timestamp': ServerValue.timestamp,
-    });
+      _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
+        if (candidate.candidate == null) return;
+        _rtdb.ref('calls/$callId/caller_candidates').push().set({
+          'serverCandidate': candidate.candidate,
+          'sdpMid': candidate.sdpMid,
+          'sdpMlineIndex': candidate.sdpMLineIndex,
+        });
+      };
 
-    // 5. Send incoming call notification trigger in RTDB
-    await _rtdb.ref('users/$partnerUid/incoming_call').set({
-      'callId': callId,
-      'callerUid': myUid,
-      'callerName': 'Partner',
-      'callerPhoto': partnerPhoto,
-      'type': type.name,
-      'timestamp': ServerValue.timestamp,
-    });
+      // 3. Create Offer with mandatory receive constraints
+      final sdpConstraints = <String, dynamic>{
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': type == CallType.video,
+        },
+        'optional': [],
+      };
 
-    // 6. Listen to call status & answer
-    _listenToCallStatus(callId, isCaller: true);
-    _listenToIceCandidates(callId, candidateNode: 'receiver_candidates');
+      final offer = await _peerConnection!.createOffer(sdpConstraints);
+      await _peerConnection!.setLocalDescription(offer);
+
+      // 4. Save call in RTDB
+      await _rtdb.ref('calls/$callId').set({
+        'callId': callId,
+        'callerUid': myUid,
+        'receiverUid': partnerUid,
+        'partnerName': partnerName,
+        'type': type.name,
+        'status': 'calling',
+        'offer': {
+          'sdp': offer.sdp,
+          'type': offer.type,
+        },
+        'timestamp': ServerValue.timestamp,
+      });
+
+      // 5. Send incoming call notification trigger in RTDB
+      await _rtdb.ref('users/$partnerUid/incoming_call').set({
+        'callId': callId,
+        'callerUid': myUid,
+        'callerName': 'Partner',
+        'callerPhoto': partnerPhoto,
+        'type': type.name,
+        'timestamp': ServerValue.timestamp,
+      });
+
+      // 6. Listen to call status & answer
+      _listenToCallStatus(callId, isCaller: true);
+      _listenToIceCandidates(callId, candidateNode: 'receiver_candidates');
+    } catch (e) {
+      debugPrint('[WebRtcCallService] Error during startCall offer: $e');
+      _updateStatus(CallStatus.failed);
+    }
   }
 
   /// Answer an incoming call
@@ -281,15 +341,23 @@ class WebRtcCallService {
     required String callerUid,
     required CallType type,
   }) async {
+    final hasPerms = await _requestPermissions(type);
+    if (!hasPerms) {
+      _updateStatus(CallStatus.failed);
+      return;
+    }
+
     await initRenderers();
     currentRole = CallRole.receiver;
     currentCallType = type;
     currentCallId = callId;
     currentPartnerUid = callerUid;
+    _isRemoteDescriptionSet = false;
+    _earlyIceCandidates.clear();
 
     _updateStatus(CallStatus.ringing);
 
-    // 1. Get media streams (Opus HD Audio + VP9 30-60fps adaptive video)
+    // 1. Get media streams
     final mediaConstraints = <String, dynamic>{
       'audio': {
         'echoCancellation': true,
@@ -318,68 +386,89 @@ class WebRtcCallService {
     try {
       _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       localRenderer.srcObject = _localStream;
-    } catch (e) {
-      debugPrint('Error getting receiver media: $e');
-      _updateStatus(CallStatus.failed);
-      return;
-    }
 
-    // 2. Create peer connection
-    final config = await _getIceConfiguration();
-    _peerConnection = await createPeerConnection(config);
-
-    _localStream?.getTracks().forEach((track) {
-      _peerConnection?.addTrack(track, _localStream!);
-    });
-
-    _peerConnection?.onTrack = (RTCTrackEvent event) {
-      if (event.streams.isNotEmpty) {
-        _remoteStream = event.streams[0];
-        remoteRenderer.srcObject = _remoteStream;
-      }
-    };
-
-    _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
-      _rtdb.ref('calls/$callId/receiver_candidates').push().set({
-        'serverCandidate': candidate.candidate,
-        'sdpMid': candidate.sdpMid,
-        'sdpMlineIndex': candidate.sdpMLineIndex,
+      isSpeakerOn = type == CallType.video;
+      _localStream?.getAudioTracks().forEach((track) {
+        track.enableSpeakerphone(isSpeakerOn);
       });
-    };
-
-    // 3. Read Offer from RTDB
-    final snap = await _rtdb.ref('calls/$callId/offer').get();
-    if (!snap.exists || snap.value == null) {
+    } catch (e) {
+      debugPrint('[WebRtcCallService] Error getting receiver media: $e');
       _updateStatus(CallStatus.failed);
       return;
     }
 
-    final offerMap = Map<dynamic, dynamic>.from(snap.value as Map);
-    final offer = RTCSessionDescription(
-      offerMap['sdp'] as String,
-      offerMap['type'] as String,
-    );
-    await _peerConnection!.setRemoteDescription(offer);
+    try {
+      // 2. Create peer connection
+      final config = await _getIceConfiguration();
+      _peerConnection = await createPeerConnection(config);
 
-    // 4. Create Answer
-    final answer = await _peerConnection!.createAnswer();
-    await _peerConnection!.setLocalDescription(answer);
+      _localStream?.getTracks().forEach((track) {
+        _peerConnection?.addTrack(track, _localStream!);
+      });
 
-    // 5. Write Answer to RTDB and update status to connected
-    await _rtdb.ref('calls/$callId').update({
-      'status': 'connected',
-      'answer': {
-        'sdp': answer.sdp,
-        'type': answer.type,
-      },
-    });
+      _peerConnection?.onTrack = (RTCTrackEvent event) {
+        if (event.streams.isNotEmpty) {
+          _remoteStream = event.streams[0];
+          remoteRenderer.srcObject = _remoteStream;
+        }
+      };
 
-    // Remove incoming call trigger
-    await _rtdb.ref('users/$myUid/incoming_call').remove();
+      _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
+        if (candidate.candidate == null) return;
+        _rtdb.ref('calls/$callId/receiver_candidates').push().set({
+          'serverCandidate': candidate.candidate,
+          'sdpMid': candidate.sdpMid,
+          'sdpMlineIndex': candidate.sdpMLineIndex,
+        });
+      };
 
-    _onCallConnected();
-    _listenToCallStatus(callId, isCaller: false);
-    _listenToIceCandidates(callId, candidateNode: 'caller_candidates');
+      // 3. Read Offer from RTDB
+      final snap = await _rtdb.ref('calls/$callId/offer').get();
+      if (!snap.exists || snap.value == null) {
+        _updateStatus(CallStatus.failed);
+        return;
+      }
+
+      final offerMap = Map<dynamic, dynamic>.from(snap.value as Map);
+      final offer = RTCSessionDescription(
+        offerMap['sdp'] as String,
+        offerMap['type'] as String,
+      );
+      await _peerConnection!.setRemoteDescription(offer);
+      _isRemoteDescriptionSet = true;
+      _drainQueuedIceCandidates();
+
+      // 4. Create Answer
+      final sdpConstraints = <String, dynamic>{
+        'mandatory': {
+          'OfferToReceiveAudio': true,
+          'OfferToReceiveVideo': type == CallType.video,
+        },
+        'optional': [],
+      };
+
+      final answer = await _peerConnection!.createAnswer(sdpConstraints);
+      await _peerConnection!.setLocalDescription(answer);
+
+      // 5. Write Answer to RTDB and update status to connected
+      await _rtdb.ref('calls/$callId').update({
+        'status': 'connected',
+        'answer': {
+          'sdp': answer.sdp,
+          'type': answer.type,
+        },
+      });
+
+      // Remove incoming call trigger
+      await _rtdb.ref('users/$myUid/incoming_call').remove();
+
+      _onCallConnected();
+      _listenToCallStatus(callId, isCaller: false);
+      _listenToIceCandidates(callId, candidateNode: 'caller_candidates');
+    } catch (e) {
+      debugPrint('[WebRtcCallService] Error during answerCall: $e');
+      _updateStatus(CallStatus.failed);
+    }
   }
 
   /// Decline an incoming call
@@ -430,6 +519,8 @@ class WebRtcCallService {
             ansMap['type'] as String,
           );
           await _peerConnection?.setRemoteDescription(answer);
+          _isRemoteDescriptionSet = true;
+          _drainQueuedIceCandidates();
           _onCallConnected();
         }
       } else if (val == 'ended') {
@@ -446,19 +537,37 @@ class WebRtcCallService {
 
   void _listenToIceCandidates(String callId, {required String candidateNode}) {
     _iceCandidateSub?.cancel();
-    _iceCandidateSub = _rtdb.ref('calls/$callId/$candidateNode').onChildAdded.listen((event) {
+    _iceCandidateSub = _rtdb.ref('calls/$callId/$candidateNode').onChildAdded.listen((event) async {
       if (event.snapshot.value != null) {
         try {
           final data = Map<dynamic, dynamic>.from(event.snapshot.value as Map);
+          final serverCandidate = data['serverCandidate'] as String?;
+          if (serverCandidate == null || serverCandidate.isEmpty) return;
+
           final candidate = RTCIceCandidate(
-            data['serverCandidate'] as String?,
+            serverCandidate,
             data['sdpMid'] as String?,
             (data['sdpMlineIndex'] as num?)?.toInt(),
           );
-          _peerConnection?.addCandidate(candidate);
+
+          if (_isRemoteDescriptionSet && _peerConnection != null) {
+            await _peerConnection?.addCandidate(candidate);
+          } else {
+            _earlyIceCandidates.add(candidate);
+          }
         } catch (_) {}
       }
     });
+  }
+
+  void _drainQueuedIceCandidates() {
+    if (_peerConnection == null || !_isRemoteDescriptionSet) return;
+    for (final candidate in _earlyIceCandidates) {
+      try {
+        _peerConnection?.addCandidate(candidate);
+      } catch (_) {}
+    }
+    _earlyIceCandidates.clear();
   }
 
   void _onCallConnected() {
@@ -541,7 +650,7 @@ class WebRtcCallService {
       }
       return true;
     } catch (e) {
-      debugPrint('Error toggling screen share: $e');
+      debugPrint('[WebRtcCallService] Error toggling screen share: $e');
       return false;
     }
   }
@@ -561,7 +670,6 @@ class WebRtcCallService {
         timestamp: DateTime.now().millisecondsSinceEpoch,
       );
 
-      // Save in RTDB under user's call logs
       await _rtdb.ref('call_logs/$currentPartnerUid/${record.callId}').set(record.toMap());
     } catch (_) {}
   }
@@ -603,6 +711,8 @@ class WebRtcCallService {
     _callSub = null;
     _iceCandidateSub?.cancel();
     _iceCandidateSub = null;
+    _earlyIceCandidates.clear();
+    _isRemoteDescriptionSet = false;
 
     try {
       _localStream?.getTracks().forEach((track) => track.stop());
