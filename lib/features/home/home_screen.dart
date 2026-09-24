@@ -23,6 +23,8 @@ import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
 import '../../core/services/background_location_service.dart';
 import '../calls/incoming_call_screen.dart';
+import '../calls/voice_call_screen.dart';
+import '../calls/video_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/widget_sync_service.dart';
@@ -393,6 +395,45 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _startCallFromHome(Map<String, dynamic> partner, CallType type) async {
+    final myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final pUid = partner['uid'] as String? ?? '';
+    final pName = (partner['name'] as String?) ?? 'Friend';
+    final pPhoto = partner['photoUrl'] as String?;
+
+    if (myUid.isEmpty || pUid.isEmpty) return;
+
+    await WebRtcCallService.instance.startCall(
+      myUid: myUid,
+      partnerUid: pUid,
+      partnerName: pName,
+      partnerPhoto: pPhoto,
+      type: type,
+    );
+
+    if (mounted) {
+      if (type == CallType.video) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VideoCallScreen(
+              partnerName: pName,
+              partnerPhoto: pPhoto,
+            ),
+          ),
+        );
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VoiceCallScreen(
+              partnerName: pName,
+              partnerPhoto: pPhoto,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _callPartner(String phone) async {
@@ -2111,7 +2152,7 @@ class _HomeScreenState extends State<HomeScreen>
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           color: const Color(0xFF1A1936).withValues(alpha: 0.60),
                           border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-                          onTap: pPhone.isNotEmpty ? () => _callPartner(pPhone) : null,
+                          onTap: () => _startCallFromHome(activePartner, CallType.audio),
                           child: const Column(
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -2131,7 +2172,7 @@ class _HomeScreenState extends State<HomeScreen>
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           color: const Color(0xFF1A1936).withValues(alpha: 0.60),
                           border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-                          onTap: () => _openChat(activePartner, isOnline),
+                          onTap: () => _startCallFromHome(activePartner, CallType.video),
                           child: const Column(
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,

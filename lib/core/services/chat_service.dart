@@ -350,22 +350,25 @@ class ChatService {
     if (uid == null || uid.isEmpty) return;
 
     try {
-      final unreadDocs = await _firestore
+      final snap = await _firestore
           .collection('conversations')
           .doc(conversationId)
           .collection('messages')
           .where('recipientId', isEqualTo: uid)
-          .where('status', isNotEqualTo: 'read')
+          .limit(100)
           .get();
 
-      if (unreadDocs.docs.isEmpty) return;
+      final unreadDocs = snap.docs.where((doc) => doc.data()['status'] != 'read').toList();
+      if (unreadDocs.isEmpty) return;
 
       final batch = _firestore.batch();
-      for (final doc in unreadDocs.docs) {
+      for (final doc in unreadDocs) {
         batch.update(doc.reference, {'status': 'read'});
       }
       await batch.commit();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ChatService] Error marking messages as read: $e');
+    }
   }
 
   /// Stream count of unread messages in a conversation for the current user
@@ -381,9 +384,8 @@ class ChatService {
         .doc(conversationId)
         .collection('messages')
         .where('recipientId', isEqualTo: currentUid)
-        .where('status', isNotEqualTo: 'read')
         .snapshots()
-        .map((snap) => snap.docs.length)
+        .map((snap) => snap.docs.where((d) => d.data()['status'] != 'read').length)
         .handleError((_) => 0);
   }
 }

@@ -6,6 +6,8 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 
+import 'call_sound_service.dart';
+
 enum CallType { audio, video }
 enum CallRole { caller, receiver }
 enum CallStatus { idle, calling, ringing, connected, ended, declined, failed }
@@ -144,53 +146,57 @@ class WebRtcCallService {
   }
 
   Future<Map<String, dynamic>> _getIceConfiguration() async {
-    final fallbackConfig = {
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-        {'urls': 'stun:stun1.l.google.com:19302'},
-        {'urls': 'stun:stun2.l.google.com:19302'},
-        {'urls': 'stun:stun3.l.google.com:19302'},
-        {'urls': 'stun:stun4.l.google.com:19302'},
-        {'urls': 'stun:stun.cloudflare.com:3478'},
-      ],
-      'sdpSemantics': 'unified-plan',
-    };
+    final List<Map<String, dynamic>> iceServers = [
+      {'urls': 'stun:stun.l.google.com:19302'},
+      {'urls': 'stun:stun1.l.google.com:19302'},
+      {'urls': 'stun:stun2.l.google.com:19302'},
+      {'urls': 'stun:stun3.l.google.com:19302'},
+      {'urls': 'stun:stun4.l.google.com:19302'},
+      {'urls': 'stun:stun.relay.metered.ca:80'},
+      {
+        'urls': [
+          'turn:global.relay.metered.ca:80',
+          'turn:global.relay.metered.ca:443',
+          'turn:global.relay.metered.ca:443?transport=tcp',
+          'turns:global.relay.metered.ca:443?transport=tcp',
+        ],
+        'username': 'openrelayproject',
+        'credential': 'openrelayproject',
+      },
+    ];
 
-    if (_cfTurnKeyId.isEmpty || _cfApiToken.isEmpty) return fallbackConfig;
+    if (_cfTurnKeyId.isNotEmpty && _cfApiToken.isNotEmpty) {
+      try {
+        final url = Uri.parse('https://rtc.live.cloudflare.com/v1/turn/keys/$_cfTurnKeyId/credentials/generate');
+        final response = await http.post(
+          url,
+          headers: {
+            'Authorization': 'Bearer $_cfApiToken',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'ttl': 86400}),
+        ).timeout(const Duration(seconds: 3));
 
-    try {
-      final url = Uri.parse('https://rtc.live.cloudflare.com/v1/turn/keys/$_cfTurnKeyId/credentials/generate');
-      final response = await http.post(
-        url,
-        headers: {
-          'Authorization': 'Bearer $_cfApiToken',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({'ttl': 86400}),
-      ).timeout(const Duration(seconds: 4));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data != null && data['iceServers'] != null) {
-          final dynamic rawIce = data['iceServers'];
-          List<dynamic> iceList = [];
-          if (rawIce is List) iceList = rawIce;
-          if (rawIce is Map) iceList = [rawIce];
-          if (iceList.isNotEmpty) {
-            return {
-              'iceServers': [
-                ...iceList,
-                {'urls': 'stun:stun.l.google.com:19302'},
-                {'urls': 'stun:stun1.l.google.com:19302'},
-              ],
-              'sdpSemantics': 'unified-plan',
-            };
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data != null && data['iceServers'] != null) {
+            final dynamic rawIce = data['iceServers'];
+            List<dynamic> cfList = [];
+            if (rawIce is List) cfList = rawIce;
+            if (rawIce is Map) cfList = [rawIce];
+            for (final s in cfList) {
+              if (s is Map<String, dynamic>) iceServers.add(s);
+              if (s is Map) iceServers.add(Map<String, dynamic>.from(s));
+            }
           }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
-    return fallbackConfig;
+    return {
+      'iceServers': iceServers,
+      'sdpSemantics': 'unified-plan',
+    };
   }
 
   /// Start outgoing call (Audio or Video)
@@ -254,6 +260,7 @@ class WebRtcCallService {
 
       // Set audio speakerphone defaults
       isSpeakerOn = type == CallType.video;
+      Helper.setSpeakerphoneOn(isSpeakerOn);
       _localStream?.getAudioTracks().forEach((track) {
         track.enableSpeakerphone(isSpeakerOn);
       });
@@ -273,10 +280,17 @@ class WebRtcCallService {
       });
 
       _peerConnection?.onTrack = (RTCTrackEvent event) {
+        debugPrint('[WebRtcCallService] onTrack kind=${event.track.kind}, streams=${event.streams.length}');
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
           remoteRenderer.srcObject = _remoteStream;
         }
+      };
+
+      _peerConnection?.onAddStream = (MediaStream stream) {
+        debugPrint('[WebRtcCallService] onAddStream received with ${stream.getTracks().length} tracks');
+        _remoteStream = stream;
+        remoteRenderer.srcObject = stream;
       };
 
       _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
@@ -299,6 +313,9 @@ class WebRtcCallService {
 
       final offer = await _peerConnection!.createOffer(sdpConstraints);
       await _peerConnection!.setLocalDescription(offer);
+
+      // Start dialing ringback tone
+      CallSoundService.instance.startDialingTone();
 
       // 4. Save call in RTDB
       await _rtdb.ref('calls/$callId').set({
@@ -330,6 +347,7 @@ class WebRtcCallService {
       _listenToIceCandidates(callId, candidateNode: 'receiver_candidates');
     } catch (e) {
       debugPrint('[WebRtcCallService] Error during startCall offer: $e');
+      CallSoundService.instance.stop();
       _updateStatus(CallStatus.failed);
     }
   }
@@ -356,6 +374,7 @@ class WebRtcCallService {
     _earlyIceCandidates.clear();
 
     _updateStatus(CallStatus.ringing);
+    CallSoundService.instance.stop();
 
     // 1. Get media streams
     final mediaConstraints = <String, dynamic>{
@@ -388,6 +407,7 @@ class WebRtcCallService {
       localRenderer.srcObject = _localStream;
 
       isSpeakerOn = type == CallType.video;
+      Helper.setSpeakerphoneOn(isSpeakerOn);
       _localStream?.getAudioTracks().forEach((track) {
         track.enableSpeakerphone(isSpeakerOn);
       });
@@ -407,10 +427,17 @@ class WebRtcCallService {
       });
 
       _peerConnection?.onTrack = (RTCTrackEvent event) {
+        debugPrint('[WebRtcCallService] onTrack kind=${event.track.kind}, streams=${event.streams.length}');
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
           remoteRenderer.srcObject = _remoteStream;
         }
+      };
+
+      _peerConnection?.onAddStream = (MediaStream stream) {
+        debugPrint('[WebRtcCallService] onAddStream received with ${stream.getTracks().length} tracks');
+        _remoteStream = stream;
+        remoteRenderer.srcObject = stream;
       };
 
       _peerConnection?.onIceCandidate = (RTCIceCandidate candidate) {
@@ -476,6 +503,7 @@ class WebRtcCallService {
     required String callId,
     required String myUid,
   }) async {
+    CallSoundService.instance.playEndedTone();
     try {
       await _rtdb.ref('calls/$callId').update({'status': 'declined'});
       await _rtdb.ref('users/$myUid/incoming_call').remove();
@@ -487,6 +515,7 @@ class WebRtcCallService {
 
   /// End active call
   Future<void> endCall() async {
+    CallSoundService.instance.playEndedTone();
     if (currentCallId != null) {
       try {
         await _rtdb.ref('calls/$currentCallId').update({
@@ -510,10 +539,18 @@ class WebRtcCallService {
       if (val == null) return;
 
       if (val == 'connected' && isCaller && status != CallStatus.connected) {
-        // Read Answer
-        final ansSnap = await _rtdb.ref('calls/$callId/answer').get();
-        if (ansSnap.exists && ansSnap.value != null) {
-          final ansMap = Map<dynamic, dynamic>.from(ansSnap.value as Map);
+        // Read Answer with retry loop to avoid race conditions
+        Map<dynamic, dynamic>? ansMap;
+        for (int i = 0; i < 6; i++) {
+          final ansSnap = await _rtdb.ref('calls/$callId/answer').get();
+          if (ansSnap.exists && ansSnap.value != null) {
+            ansMap = Map<dynamic, dynamic>.from(ansSnap.value as Map);
+            break;
+          }
+          await Future.delayed(const Duration(milliseconds: 200));
+        }
+
+        if (ansMap != null && _peerConnection != null) {
           final answer = RTCSessionDescription(
             ansMap['sdp'] as String,
             ansMap['type'] as String,
@@ -573,6 +610,7 @@ class WebRtcCallService {
   void _onCallConnected() {
     durationSeconds = 0;
     _updateStatus(CallStatus.connected);
+    CallSoundService.instance.playConnectedChime();
 
     _durationTimer?.cancel();
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -597,6 +635,7 @@ class WebRtcCallService {
   /// Toggle speakerphone
   void toggleSpeaker() {
     isSpeakerOn = !isSpeakerOn;
+    Helper.setSpeakerphoneOn(isSpeakerOn);
     _localStream?.getAudioTracks().forEach((track) {
       track.enableSpeakerphone(isSpeakerOn);
     });
@@ -705,6 +744,7 @@ class WebRtcCallService {
   }
 
   Future<void> cleanUp() async {
+    CallSoundService.instance.stop();
     _durationTimer?.cancel();
     _durationTimer = null;
     _callSub?.cancel();

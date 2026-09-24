@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../core/services/webrtc_call_service.dart';
+import '../../core/services/call_sound_service.dart';
 import '../../core/theme/astra_theme.dart';
 import 'voice_call_screen.dart';
 import 'video_call_screen.dart';
 
-class IncomingCallScreen extends StatelessWidget {
+class IncomingCallScreen extends StatefulWidget {
   final String callId;
   final String callerUid;
   final String callerName;
@@ -22,22 +24,64 @@ class IncomingCallScreen extends StatelessWidget {
     required this.myUid,
   });
 
+  @override
+  State<IncomingCallScreen> createState() => _IncomingCallScreenState();
+}
+
+class _IncomingCallScreenState extends State<IncomingCallScreen> {
+  StreamSubscription<CallStatus>? _statusSub;
+  bool _hasPopped = false;
+
+  @override
+  void initState() {
+    super.initState();
+    CallSoundService.instance.startIncomingRingtone();
+
+    _statusSub = WebRtcCallService.instance.onStatusChanged.listen((status) {
+      if (status == CallStatus.ended ||
+          status == CallStatus.declined ||
+          status == CallStatus.failed) {
+        _safePop();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _statusSub?.cancel();
+    CallSoundService.instance.stop();
+    super.dispose();
+  }
+
+  void _safePop() {
+    if (!_hasPopped && mounted) {
+      _hasPopped = true;
+      CallSoundService.instance.stop();
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   Future<void> _accept(BuildContext context) async {
+    CallSoundService.instance.stop();
+    _hasPopped = true;
+
     final callService = WebRtcCallService.instance;
     await callService.answerCall(
-      callId: callId,
-      myUid: myUid,
-      callerUid: callerUid,
-      type: type,
+      callId: widget.callId,
+      myUid: widget.myUid,
+      callerUid: widget.callerUid,
+      type: widget.type,
     );
 
     if (context.mounted) {
-      if (type == CallType.video) {
+      if (widget.type == CallType.video) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => VideoCallScreen(
-              partnerName: callerName,
-              partnerPhoto: callerPhoto,
+              partnerName: widget.callerName,
+              partnerPhoto: widget.callerPhoto,
             ),
           ),
         );
@@ -45,8 +89,8 @@ class IncomingCallScreen extends StatelessWidget {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => VoiceCallScreen(
-              partnerName: callerName,
-              partnerPhoto: callerPhoto,
+              partnerName: widget.callerName,
+              partnerPhoto: widget.callerPhoto,
             ),
           ),
         );
@@ -56,17 +100,15 @@ class IncomingCallScreen extends StatelessWidget {
 
   Future<void> _decline(BuildContext context) async {
     await WebRtcCallService.instance.declineCall(
-      callId: callId,
-      myUid: myUid,
+      callId: widget.callId,
+      myUid: widget.myUid,
     );
-    if (context.mounted) {
-      Navigator.of(context).pop();
-    }
+    _safePop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isVideo = type == CallType.video;
+    final isVideo = widget.type == CallType.video;
 
     return Scaffold(
       backgroundColor: const Color(0xFF090A10),
@@ -120,10 +162,10 @@ class IncomingCallScreen extends StatelessWidget {
                     child: CircleAvatar(
                       backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
                       backgroundImage:
-                          callerPhoto != null ? NetworkImage(callerPhoto!) : null,
-                      child: callerPhoto == null
+                          widget.callerPhoto != null ? NetworkImage(widget.callerPhoto!) : null,
+                      child: widget.callerPhoto == null
                           ? Text(
-                              callerName.isNotEmpty ? callerName[0].toUpperCase() : 'P',
+                              widget.callerName.isNotEmpty ? widget.callerName[0].toUpperCase() : 'P',
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 48,
@@ -138,7 +180,7 @@ class IncomingCallScreen extends StatelessWidget {
 
                 // Caller Name
                 Text(
-                  callerName,
+                  widget.callerName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,

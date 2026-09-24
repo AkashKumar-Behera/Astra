@@ -30,6 +30,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   double _pipX = 20;
   double _pipY = 100;
+  bool _hasPopped = false;
+
+  void _safePop() {
+    if (!_hasPopped && mounted) {
+      _hasPopped = true;
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -46,7 +56,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       if (status == CallStatus.ended ||
           status == CallStatus.declined ||
           status == CallStatus.failed) {
-        if (mounted) Navigator.of(context).pop();
+        _safePop();
       }
     });
   }
@@ -66,7 +76,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   Future<void> _endCall() async {
     await _callService.endCall();
-    if (mounted) Navigator.of(context).pop();
+    _safePop();
   }
 
   void _toggleMute() {

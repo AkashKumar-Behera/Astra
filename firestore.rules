@@ -106,7 +106,7 @@ service cloud.firestore {
         // - Plaintext fields ('decryptedText', 'text', 'plaintext') are strictly forbidden
         // - Message type and status validated against allowed enums
         allow create: if isAuthenticated() &&
-          request.resource.data.keys().hasOnly(['id', 'conversationId', 'senderId', 'recipientId', 'ciphertext', 'iv', 'type', 'timestamp', 'keyVersion', 'status']) &&
+          request.resource.data.keys().hasOnly(['id', 'conversationId', 'senderId', 'recipientId', 'ciphertext', 'iv', 'type', 'timestamp', 'keyVersion', 'status', 'mediaUrl', 'replyToId', 'replyToText', 'replyToSender', 'audioDurationSec']) &&
           request.resource.data.id == messageId &&
           request.resource.data.conversationId == conversationId &&
           request.auth.uid == request.resource.data.senderId &&
@@ -129,7 +129,7 @@ service cloud.firestore {
         // - Only participants can update (e.g. status updates)
         // - Ciphertext, IV, senderId, recipientId, conversationId, id, and timestamp are completely immutable
         allow update: if isConversationParticipant(conversationId) &&
-          request.resource.data.keys().hasOnly(['id', 'conversationId', 'senderId', 'recipientId', 'ciphertext', 'iv', 'type', 'timestamp', 'keyVersion', 'status']) &&
+          request.resource.data.keys().hasOnly(['id', 'conversationId', 'senderId', 'recipientId', 'ciphertext', 'iv', 'type', 'timestamp', 'keyVersion', 'status', 'mediaUrl', 'replyToId', 'replyToText', 'replyToSender', 'audioDurationSec']) &&
           request.resource.data.id == resource.data.id &&
           request.resource.data.conversationId == resource.data.conversationId &&
           request.resource.data.senderId == resource.data.senderId &&
