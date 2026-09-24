@@ -95,11 +95,11 @@ class BackgroundLocationManager {
         );
       } else if (Platform.isIOS) {
         settings = AppleSettings(
-          accuracy: LocationAccuracy.high,
-          activityType: ActivityType.fitness,
-          distanceFilter: 10,
-          pauseLocationUpdatesAutomatically: false,
-          showBackgroundLocationIndicator: true,
+          accuracy: LocationAccuracy.medium,
+          activityType: ActivityType.otherNavigation,
+          distanceFilter: 25,
+          pauseLocationUpdatesAutomatically: true,
+          showBackgroundLocationIndicator: false,
           allowBackgroundLocationUpdates: true,
         );
       } else {

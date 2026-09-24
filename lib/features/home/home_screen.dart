@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -262,11 +263,22 @@ class _HomeScreenState extends State<HomeScreen>
 
       // 3. Continuous real-time GPS stream so user's pin tracks them live
       _positionStreamSub?.cancel();
+      final streamSettings = Platform.isIOS
+          ? AppleSettings(
+              accuracy: LocationAccuracy.medium,
+              activityType: ActivityType.otherNavigation,
+              distanceFilter: 10,
+              pauseLocationUpdatesAutomatically: true,
+              showBackgroundLocationIndicator: false,
+            )
+          : AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 5,
+              intervalDuration: const Duration(seconds: 5),
+            );
+
       _positionStreamSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 5,
-        ),
+        locationSettings: streamSettings,
       ).listen((pos) async {
         if (mounted) {
           setState(() => _currentPosition = pos);

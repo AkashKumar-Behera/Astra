@@ -43,20 +43,15 @@ Future<void> handleInlineReply(NotificationResponse response) async {
     final payload = jsonDecode(payloadStr) as Map<String, dynamic>;
     final conversationId = payload['conversationId'] as String?;
     final recipientId = payload['senderId'] as String?;
+    final myUid = payload['myUid'] as String? ?? FirebaseAuth.instance.currentUser?.uid;
 
     if (conversationId != null && recipientId != null) {
-      if (FirebaseAuth.instance.currentUser == null) {
-        await FirebaseAuth.instance
-            .authStateChanges()
-            .firstWhere((u) => u != null)
-            .timeout(const Duration(seconds: 4), onTimeout: () => null);
-      }
-
       final chatService = ChatService();
       await chatService.sendMessage(
         conversationId: conversationId,
         recipientUid: recipientId,
         text: replyText.trim(),
+        senderUidOverride: myUid,
       );
 
       if (response.id != null) {
@@ -76,6 +71,7 @@ Future<void> showLocalDecryptedNotification({
   required String senderId,
   required String conversationId,
   required String bodyText,
+  String? myUid,
 }) async {
   final groupKey = 'com.astra.always.CHAT_$conversationId';
   final person = Person(
@@ -141,6 +137,7 @@ Future<void> showLocalDecryptedNotification({
     'conversationId': conversationId,
     'senderId': senderId,
     'senderName': senderName,
+    'myUid': myUid ?? FirebaseAuth.instance.currentUser?.uid ?? '',
     'type': 'chat_message',
   });
 

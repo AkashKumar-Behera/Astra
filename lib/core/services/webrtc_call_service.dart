@@ -92,6 +92,8 @@ class WebRtcCallService {
   bool isSpeakerOn = true;
   bool isCameraOff = false;
   bool isFrontCamera = true;
+  bool isScreenSharing = false;
+  MediaStream? _screenStream;
 
   Timer? _durationTimer;
   int durationSeconds = 0;
@@ -180,15 +182,25 @@ class WebRtcCallService {
 
     _updateStatus(CallStatus.calling);
 
-    // 1. Get media streams
+    // 1. Get media streams (Opus HD Audio + VP9 30-60fps adaptive video)
     final mediaConstraints = <String, dynamic>{
-      'audio': true,
+      'audio': {
+        'echoCancellation': true,
+        'noiseSuppression': true,
+        'autoGainControl': true,
+        'highpassFilter': true,
+      },
       'video': type == CallType.video
           ? {
               'mandatory': {
                 'minWidth': '640',
                 'minHeight': '480',
+                'idealWidth': '1280',
+                'idealHeight': '720',
+                'maxWidth': '1920',
+                'maxHeight': '1080',
                 'minFrameRate': '30',
+                'maxFrameRate': '60',
               },
               'facingMode': 'user',
               'optional': [],
@@ -277,15 +289,25 @@ class WebRtcCallService {
 
     _updateStatus(CallStatus.ringing);
 
-    // 1. Get media streams
+    // 1. Get media streams (Opus HD Audio + VP9 30-60fps adaptive video)
     final mediaConstraints = <String, dynamic>{
-      'audio': true,
+      'audio': {
+        'echoCancellation': true,
+        'noiseSuppression': true,
+        'autoGainControl': true,
+        'highpassFilter': true,
+      },
       'video': type == CallType.video
           ? {
               'mandatory': {
                 'minWidth': '640',
                 'minHeight': '480',
+                'idealWidth': '1280',
+                'idealHeight': '720',
+                'maxWidth': '1920',
+                'maxHeight': '1080',
                 'minFrameRate': '30',
+                'maxFrameRate': '60',
               },
               'facingMode': 'user',
               'optional': [],
@@ -488,6 +510,42 @@ class WebRtcCallService {
     }
   }
 
+  /// Toggle Live Screen Sharing during P2P Video Call
+  Future<bool> toggleScreenShare() async {
+    if (_peerConnection == null) return false;
+    try {
+      if (isScreenSharing) {
+        await _screenStream?.dispose();
+        _screenStream = null;
+        isScreenSharing = false;
+        if (_localStream != null) {
+          final videoTrack = _localStream!.getVideoTracks().firstOrNull;
+          if (videoTrack != null) {
+            final senders = await _peerConnection!.getSenders();
+            final sender = senders.firstWhere((s) => s.track?.kind == 'video');
+            await sender.replaceTrack(videoTrack);
+            localRenderer.srcObject = _localStream;
+          }
+        }
+      } else {
+        _screenStream = await navigator.mediaDevices.getDisplayMedia({
+          'video': true,
+          'audio': false,
+        });
+        final screenTrack = _screenStream!.getVideoTracks().first;
+        final senders = await _peerConnection!.getSenders();
+        final sender = senders.firstWhere((s) => s.track?.kind == 'video');
+        await sender.replaceTrack(screenTrack);
+        localRenderer.srcObject = _screenStream;
+        isScreenSharing = true;
+      }
+      return true;
+    } catch (e) {
+      debugPrint('Error toggling screen share: $e');
+      return false;
+    }
+  }
+
   Future<void> _recordCallHistory({required bool isMissed}) async {
     if (currentCallId == null || currentPartnerUid == null) return;
     try {
@@ -551,6 +609,13 @@ class WebRtcCallService {
       await _localStream?.dispose();
     } catch (_) {}
     _localStream = null;
+
+    try {
+      _screenStream?.getTracks().forEach((track) => track.stop());
+      await _screenStream?.dispose();
+    } catch (_) {}
+    _screenStream = null;
+    isScreenSharing = false;
 
     try {
       _remoteStream?.getTracks().forEach((track) => track.stop());

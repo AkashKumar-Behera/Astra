@@ -118,10 +118,10 @@ class R2StorageService {
       final response = await http.put(
         Uri.parse(endpoint),
         headers: {
-          'Host': host,
+          'host': host,
           'x-amz-date': amzDate,
           'x-amz-content-sha256': payloadHash,
-          'Content-Type': contentType,
+          'content-type': contentType,
           'Authorization': authorizationHeader,
         },
         body: bytes,

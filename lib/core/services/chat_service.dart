@@ -103,6 +103,7 @@ class ChatService {
     required String conversationId,
     required String recipientUid,
     required String text,
+    String? senderUidOverride,
     MessageType type = MessageType.text,
     String? replyToId,
     String? replyToText,
@@ -110,7 +111,9 @@ class ChatService {
     String? mediaUrl,
     int? audioDurationSec,
   }) async {
-    final senderUid = currentUserId;
+    final senderUid = (senderUidOverride != null && senderUidOverride.isNotEmpty)
+        ? senderUidOverride
+        : currentUserId;
     if (senderUid == null || senderUid.isEmpty) {
       throw StateError('User must be authenticated to send messages.');
     }

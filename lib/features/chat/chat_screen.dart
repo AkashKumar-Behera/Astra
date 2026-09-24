@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models/chat_message_model.dart';
 import '../../core/services/chat_service.dart';
@@ -176,22 +178,29 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  Future<void> _pickAndSendImage() async {
+  Future<void> _uploadAndSendMedia({
+    required File file,
+    required String ext,
+    required String contentType,
+    required MessageType type,
+    required String defaultCaption,
+  }) async {
+    setState(() => _isSending = true);
     try {
-      final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
-      if (picked == null) return;
-
-      final file = File(picked.path);
-      final remotePath = 'chats/$_conversationId/images/${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final remotePath = 'chats/$_conversationId/${type.name}s/${DateTime.now().millisecondsSinceEpoch}.$ext';
       final publicUrl = await R2StorageService.uploadFile(
         file: file,
         remotePath: remotePath,
-        contentType: 'image/jpeg',
+        contentType: contentType,
       );
 
+      if (publicUrl == null || publicUrl.isEmpty) {
+        throw Exception('Cloudflare R2 storage upload failed.');
+      }
+
       await _sendMessage(
-        customText: 'Photo',
-        type: MessageType.image,
+        customText: defaultCaption,
+        type: type,
         mediaUrl: publicUrl,
       );
     } catch (e) {
@@ -199,11 +208,202 @@ class _ChatScreenState extends State<ChatScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AstraTheme.accentDanger,
-            content: Text('Failed to send image: $e'),
+            content: Text('Failed to upload media: $e'),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _isSending = false);
+      }
     }
+  }
+
+  Future<void> _pickCameraPhoto() async {
+    try {
+      final picked = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
+      if (picked == null) return;
+      await _uploadAndSendMedia(
+        file: File(picked.path),
+        ext: 'jpg',
+        contentType: 'image/jpeg',
+        type: MessageType.image,
+        defaultCaption: 'Photo',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _pickGalleryPhoto() async {
+    try {
+      final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+      if (picked == null) return;
+      await _uploadAndSendMedia(
+        file: File(picked.path),
+        ext: 'jpg',
+        contentType: 'image/jpeg',
+        type: MessageType.image,
+        defaultCaption: 'Photo',
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _pickGalleryVideo() async {
+    try {
+      final picked = await _picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(minutes: 5),
+      );
+      if (picked == null) return;
+      await _uploadAndSendMedia(
+        file: File(picked.path),
+        ext: 'mp4',
+        contentType: 'video/mp4',
+        type: MessageType.video,
+        defaultCaption: 'Video',
+      );
+    } catch (_) {}
+  }
+
+  void _openAttachmentModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              16,
+              20,
+              MediaQuery.of(context).padding.bottom + 24,
+            ),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C0B20).withValues(alpha: 0.90),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.15),
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4.5,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Share Content',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildAttachmentItem(
+                      icon: Icons.camera_alt_rounded,
+                      label: 'Camera',
+                      gradient: const [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _pickCameraPhoto();
+                      },
+                    ),
+                    _buildAttachmentItem(
+                      icon: Icons.photo_library_rounded,
+                      label: 'Gallery',
+                      gradient: const [Color(0xFF38BDF8), Color(0xFF0284C7)],
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _pickGalleryPhoto();
+                      },
+                    ),
+                    _buildAttachmentItem(
+                      icon: Icons.videocam_rounded,
+                      label: 'Video',
+                      gradient: const [Color(0xFFEC4899), Color(0xFFBE185D)],
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _pickGalleryVideo();
+                      },
+                    ),
+                    _buildAttachmentItem(
+                      icon: Icons.mic_rounded,
+                      label: 'Audio',
+                      gradient: const [Color(0xFF10B981), Color(0xFF047857)],
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _openVoiceNoteSheet();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAttachmentItem({
+    required IconData icon,
+    required String label,
+    required List<Color> gradient,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: gradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: gradient[0].withValues(alpha: 0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 26),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openVoiceNoteSheet() {
@@ -754,24 +954,38 @@ class _ChatScreenState extends State<ChatScreen> {
                       ],
                     ),
                   ] else if (msg.type == MessageType.image && msg.mediaUrl != null) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        msg.mediaUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) {
-                          if (progress == null) return child;
-                          return Container(
-                            height: 160,
+                    GestureDetector(
+                      onTap: () {
+                        if (msg.mediaUrl != null) {
+                          launchUrl(Uri.parse(msg.mediaUrl!), mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          msg.mediaUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return Container(
+                              height: 160,
+                              color: Colors.white10,
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFA594F9),
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (ctx, err, stack) => Container(
+                            height: 120,
                             color: Colors.white10,
                             child: const Center(
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white54,
-                              ),
+                              child: Icon(Icons.broken_image_rounded, color: Colors.white38),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                     ),
                     if (msg.decryptedText != null &&
@@ -784,6 +998,101 @@ class _ChatScreenState extends State<ChatScreen> {
                             color: Colors.white, fontSize: 14.5, height: 1.3),
                       ),
                     ],
+                  ] else if (msg.type == MessageType.video && msg.mediaUrl != null) ...[
+                    GestureDetector(
+                      onTap: () {
+                        if (msg.mediaUrl != null) {
+                          launchUrl(Uri.parse(msg.mediaUrl!), mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Container(
+                        height: 160,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1B4B),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            const Icon(Icons.videocam_rounded, size: 48, color: Colors.white24),
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF38BDF8).withValues(alpha: 0.85),
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
+                                    blurRadius: 16,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 32),
+                            ),
+                            Positioned(
+                              bottom: 8,
+                              left: 10,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text(
+                                  'Video • Tap to Play',
+                                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ] else if (msg.type == MessageType.file && msg.mediaUrl != null) ...[
+                    GestureDetector(
+                      onTap: () {
+                        if (msg.mediaUrl != null) {
+                          launchUrl(Uri.parse(msg.mediaUrl!), mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.insert_drive_file_rounded, color: Color(0xFF38BDF8), size: 28),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    msg.decryptedText ?? 'Document',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Tap to download/open',
+                                    style: TextStyle(color: AstraTheme.textSecondary, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.download_rounded, color: Colors.white70, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
                   ] else ...[
                     Text(
                       msg.decryptedText ?? '',
@@ -878,7 +1187,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               child: const Icon(Icons.add, color: Colors.white70, size: 20),
             ),
-            onPressed: _pickAndSendImage,
+            onPressed: _openAttachmentModal,
           ),
 
           // Text Field Container
@@ -913,7 +1222,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   IconButton(
                     icon: const Icon(Icons.camera_alt_outlined,
                         color: Colors.white54, size: 20),
-                    onPressed: _pickAndSendImage,
+                    onPressed: _pickCameraPhoto,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
