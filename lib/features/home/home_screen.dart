@@ -22,7 +22,6 @@ import '../../core/services/map_cache_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
 import '../../core/services/background_location_service.dart';
-import '../calls/incoming_call_screen.dart';
 import '../calls/voice_call_screen.dart';
 import '../calls/video_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
@@ -433,15 +432,6 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         );
       }
-    }
-  }
-
-  void _callPartner(String phone) async {
-    final clean = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    if (clean.isEmpty) return;
-    final uri = Uri.parse('tel:$clean');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
     }
   }
 
@@ -1795,7 +1785,6 @@ class _HomeScreenState extends State<HomeScreen>
     final pUid = activePartner['uid'] as String? ?? '';
     final pName = (activePartner['name'] as String?) ?? 'Partner';
     final pPhoto = activePartner['photoUrl'] as String?;
-    final pPhone = (activePartner['phoneNumber'] as String?) ?? '';
 
     return DraggableScrollableSheet(
       initialChildSize: 0.20,
