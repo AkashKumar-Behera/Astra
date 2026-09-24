@@ -94,6 +94,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _isLoading = false;
           _errorMessage = null;
         });
+        _chatService.markMessagesAsRead(conversationId: _conversationId);
         _scrollToBottom();
       },
       onError: (err) {
@@ -806,14 +807,41 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       if (isMe) ...[
                         const SizedBox(width: 4),
-                        Icon(
-                          msg.status == MessageStatus.failed
-                              ? Icons.error_outline_rounded
-                              : Icons.done_all_rounded,
-                          size: 13,
-                          color: msg.status == MessageStatus.failed
-                              ? AstraTheme.accentDanger
-                              : const Color(0xFF70A1FF),
+                        Builder(
+                          builder: (context) {
+                            switch (msg.status) {
+                              case MessageStatus.sending:
+                                return Icon(
+                                  Icons.access_time_rounded,
+                                  size: 11,
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                );
+                              case MessageStatus.sent:
+                                return Icon(
+                                  Icons.check_rounded,
+                                  size: 13,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                );
+                              case MessageStatus.delivered:
+                                return Icon(
+                                  Icons.done_all_rounded,
+                                  size: 13,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                );
+                              case MessageStatus.read:
+                                return const Icon(
+                                  Icons.done_all_rounded,
+                                  size: 13,
+                                  color: Color(0xFF38BDF8),
+                                );
+                              case MessageStatus.failed:
+                                return const Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 13,
+                                  color: AstraTheme.accentDanger,
+                                );
+                            }
+                          },
                         ),
                       ],
                     ],

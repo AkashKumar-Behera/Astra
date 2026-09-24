@@ -75,11 +75,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _checkUpdateAndProceed() async {
-    // Run update check in parallel with splash delay
+    // Fast non-blocking update check with quick entrance delay
     final updateFuture = UpdateService.checkForUpdate(
-      timeout: const Duration(milliseconds: 1400),
+      timeout: const Duration(milliseconds: 1000),
     );
-    final delayFuture = Future.delayed(const Duration(milliseconds: 2000));
+    final delayFuture = Future.delayed(const Duration(milliseconds: 500));
 
     final results = await Future.wait([updateFuture, delayFuture]);
     final updateInfo = results[0] as UpdateInfo?;
@@ -178,9 +178,9 @@ class _SplashScreenState extends State<SplashScreen>
                     height: 1.45,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
 
-                // Action Buttons
+                // Action Buttons: Later | Visit Website | Update Now
                 Row(
                   children: [
                     Expanded(
@@ -199,15 +199,40 @@ class _SplashScreenState extends State<SplashScreen>
                           'Later',
                           style: TextStyle(
                             color: AstraTheme.textMuted,
-                            fontSize: 14,
+                            fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
+                      child: OutlinedButton(
+                        onPressed: () async {
+                          final uri = Uri.parse('https://astra.croto.in');
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: AstraTheme.primary.withValues(alpha: 0.4)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: const Text(
+                          'Website',
+                          style: TextStyle(
+                            color: AstraTheme.primaryLight,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: AstraTheme.primaryGradient,
@@ -239,10 +264,10 @@ class _SplashScreenState extends State<SplashScreen>
                             ),
                           ),
                           child: const Text(
-                            'Update Now',
+                            'Update',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -265,7 +290,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (user != null) {
       try {
-        final profile = await AuthService.getUserProfile(user.uid);
+        final profile = await AuthService.getUserProfile(user.uid)
+            .timeout(const Duration(milliseconds: 900));
         if (profile != null &&
             profile['name'] != null &&
             (profile['name'] as String).trim().isNotEmpty) {
@@ -280,9 +306,12 @@ class _SplashScreenState extends State<SplashScreen>
           );
         }
       } catch (e) {
-        debugPrint('[SplashScreen] Auth routing check error: $e');
-        // Fallback to phone auth if profile fetching fails severely
-        destination = const PhoneAuthScreen();
+        debugPrint('[SplashScreen] Profile fetch timeout/offline fallback: $e');
+        // Offline resilience: User is authenticated, boot straight to HomeScreen
+        destination = HomeScreen(
+          userName: user.displayName ?? 'Astra User',
+          photoUrl: user.photoURL,
+        );
       }
     }
 

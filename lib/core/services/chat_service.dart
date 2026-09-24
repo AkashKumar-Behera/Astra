@@ -338,4 +338,49 @@ class ChatService {
 
     await messageRef.delete();
   }
+
+  /// Mark unread messages in conversation as read
+  Future<void> markMessagesAsRead({
+    required String conversationId,
+  }) async {
+    final uid = currentUserId;
+    if (uid == null || uid.isEmpty) return;
+
+    try {
+      final unreadDocs = await _firestore
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .where('recipientId', isEqualTo: uid)
+          .where('status', isNotEqualTo: 'read')
+          .get();
+
+      if (unreadDocs.docs.isEmpty) return;
+
+      final batch = _firestore.batch();
+      for (final doc in unreadDocs.docs) {
+        batch.update(doc.reference, {'status': 'read'});
+      }
+      await batch.commit();
+    } catch (_) {}
+  }
+
+  /// Stream count of unread messages in a conversation for the current user
+  Stream<int> streamUnreadCount({
+    required String conversationId,
+    required String currentUid,
+  }) {
+    if (conversationId.isEmpty || currentUid.isEmpty) {
+      return Stream.value(0);
+    }
+    return _firestore
+        .collection('conversations')
+        .doc(conversationId)
+        .collection('messages')
+        .where('recipientId', isEqualTo: currentUid)
+        .where('status', isNotEqualTo: 'read')
+        .snapshots()
+        .map((snap) => snap.docs.length)
+        .handleError((_) => 0);
+  }
 }

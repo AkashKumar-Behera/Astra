@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +14,7 @@ class UpdateInfo {
   final String? releaseNotes;
   final String? apkDownloadUrl;
   final String? releasePageUrl;
+  final bool isIOS;
 
   UpdateInfo({
     required this.hasUpdate,
@@ -21,6 +24,7 @@ class UpdateInfo {
     this.releaseNotes,
     this.apkDownloadUrl,
     this.releasePageUrl,
+    this.isIOS = false,
   });
 }
 
@@ -43,14 +47,13 @@ class UpdateService {
   }
 
   /// Performs a fast check against GitHub Releases API with strict timeout.
-  /// If beta is false: filters for stable releases only (ignoring pre-releases/beta tags).
-  /// If beta is true: includes latest beta / pre-releases.
+  /// Detects device ABI (64-bit vs 32-bit vs iOS) to select exact download asset.
   static Future<UpdateInfo?> checkForUpdate({
-    Duration timeout = const Duration(milliseconds: 1600),
+    Duration timeout = const Duration(milliseconds: 2500),
   }) async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version; // e.g. "1.0.0"
+      final currentVersion = packageInfo.version; // e.g. "1.0.20"
       final betaEnabled = await isBetaEnabled();
 
       final response = await http
@@ -75,7 +78,6 @@ class UpdateService {
               tagName.contains('dev');
 
           if (!betaEnabled && isBetaTag) {
-            // User only wants stable releases, skip beta/dev tags
             continue;
           }
 
@@ -92,14 +94,51 @@ class UpdateService {
         final releaseNotes = selectedRelease['body'] as String? ?? '';
         final htmlUrl = selectedRelease['html_url'] as String? ?? '';
 
-        String? apkUrl;
-        final assets = selectedRelease['assets'] as List<dynamic>?;
-        if (assets != null) {
-          for (var asset in assets) {
-            final name = asset['name'] as String? ?? '';
-            if (name.endsWith('.apk')) {
-              apkUrl = asset['browser_download_url'] as String?;
-              break;
+        String? downloadUrl;
+        final isIOSDevice = Platform.isIOS;
+
+        if (isIOSDevice) {
+          downloadUrl = 'https://astra.croto.in';
+        } else {
+          final assets = selectedRelease['assets'] as List<dynamic>?;
+          if (assets != null && assets.isNotEmpty) {
+            List<String> abis = [];
+            if (Platform.isAndroid) {
+              try {
+                final androidInfo = await DeviceInfoPlugin().androidInfo;
+                abis = androidInfo.supportedAbis;
+              } catch (_) {}
+            }
+
+            final is64Bit = abis.any((a) => a.contains('arm64') || a.contains('x86_64') || a.contains('64'));
+            final is32Bit = abis.any((a) => a.contains('armeabi') || a.contains('v7a') || a.contains('32'));
+
+            String? arm64Url;
+            String? arm32Url;
+            String? universalUrl;
+            String? anyApkUrl;
+
+            for (var asset in assets) {
+              final name = (asset['name'] as String? ?? '').toLowerCase();
+              final url = asset['browser_download_url'] as String?;
+              if (name.endsWith('.apk') && url != null) {
+                anyApkUrl ??= url;
+                if (name.contains('arm64-v8a') || name.contains('arm64')) {
+                  arm64Url = url;
+                } else if (name.contains('armeabi-v7a') || name.contains('v7a')) {
+                  arm32Url = url;
+                } else if (name.contains('release.apk') || name.contains('universal')) {
+                  universalUrl = url;
+                }
+              }
+            }
+
+            if (is64Bit && arm64Url != null) {
+              downloadUrl = arm64Url;
+            } else if (is32Bit && arm32Url != null) {
+              downloadUrl = arm32Url;
+            } else {
+              downloadUrl = universalUrl ?? arm64Url ?? arm32Url ?? anyApkUrl ?? htmlUrl;
             }
           }
         }
@@ -112,13 +151,12 @@ class UpdateService {
           latestVersion: cleanTag.isNotEmpty ? cleanTag : currentVersion,
           currentVersion: currentVersion,
           releaseNotes: releaseNotes,
-          apkDownloadUrl: apkUrl ?? htmlUrl,
+          apkDownloadUrl: downloadUrl ?? htmlUrl,
           releasePageUrl: htmlUrl,
+          isIOS: isIOSDevice,
         );
       }
-    } catch (_) {
-      // Offline, timeout, or API rate limit: fail silently and proceed
-    }
+    } catch (_) {}
     return null;
   }
 

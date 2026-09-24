@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/services/presence_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../calls/call_history_screen.dart';
@@ -244,11 +245,19 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       Divider(color: Colors.white.withValues(alpha: 0.05)),
                     ],
-                    _buildSettingsTile(
-                      icon: Icons.info_outline_rounded,
-                      title: 'About Astra',
-                      subtitle: 'Version 1.0.9',
-                      onTap: () {},
+                    FutureBuilder<PackageInfo>(
+                      future: PackageInfo.fromPlatform(),
+                      builder: (context, snap) {
+                        final versionStr = snap.hasData
+                            ? 'Version ${snap.data!.version}+${snap.data!.buildNumber}'
+                            : 'Version 1.0.20';
+                        return _buildSettingsTile(
+                          icon: Icons.info_outline_rounded,
+                          title: 'About Astra',
+                          subtitle: versionStr,
+                          onTap: () {},
+                        );
+                      },
                     ),
                   ],
                 ),

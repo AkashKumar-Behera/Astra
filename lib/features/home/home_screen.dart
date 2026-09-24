@@ -25,6 +25,7 @@ import '../calls/incoming_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
 import '../settings/settings_screen.dart';
 import '../../core/services/widget_sync_service.dart';
+import '../../core/services/chat_service.dart';
 import '../../core/widgets/astra_logo.dart';
 
 enum AstraMapStyle {
@@ -62,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen>
   bool _isRefreshingLocation = false;
   double _mapRotation = 0.0;
   bool _isPrecachingMap = false;
+  List<Map<String, dynamic>> _cachedPartners = [];
 
   @override
   void initState() {
@@ -468,7 +470,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<List<Map<String, dynamic>>> _fetchPartnersData(List<String> uids) async {
-    if (uids.isEmpty) return [];
+    if (uids.isEmpty) {
+      _cachedPartners = [];
+      return [];
+    }
     try {
       final results = await Future.wait(
         uids.map((uid) async {
@@ -499,9 +504,13 @@ class _HomeScreenState extends State<HomeScreen>
           }
         }),
       );
-      return results.whereType<Map<String, dynamic>>().toList();
+      final valid = results.whereType<Map<String, dynamic>>().toList();
+      if (valid.isNotEmpty) {
+        _cachedPartners = valid;
+      }
+      return valid;
     } catch (_) {
-      return [];
+      return _cachedPartners;
     }
   }
 
@@ -526,7 +535,11 @@ class _HomeScreenState extends State<HomeScreen>
                 child: FutureBuilder<List<Map<String, dynamic>>>(
                   future: _fetchPartnersData(connectionUids),
                   builder: (context, partnersSnap) {
-                    final partners = partnersSnap.data ?? [];
+                    final partners = (partnersSnap.data != null && partnersSnap.data!.isNotEmpty)
+                        ? partnersSnap.data!
+                        : (connectionUids.isNotEmpty && _cachedPartners.isNotEmpty
+                            ? _cachedPartners
+                            : (partnersSnap.data ?? []));
                     final userLat = _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble();
                     final userLng = _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble();
                     final myPhoto = (userData?['photoUrl'] as String?) ?? widget.photoUrl;
@@ -706,7 +719,11 @@ class _HomeScreenState extends State<HomeScreen>
               FutureBuilder<List<Map<String, dynamic>>>(
                 future: _fetchPartnersData(connectionUids),
                 builder: (context, partnersSnap) {
-                  final partners = partnersSnap.data ?? [];
+                  final partners = (partnersSnap.data != null && partnersSnap.data!.isNotEmpty)
+                      ? partnersSnap.data!
+                      : (connectionUids.isNotEmpty && _cachedPartners.isNotEmpty
+                          ? _cachedPartners
+                          : (partnersSnap.data ?? []));
                   if (partners.isNotEmpty) {
                     final activePartner = _selectedPartnerIndex < partners.length
                         ? partners[_selectedPartnerIndex]
@@ -1511,7 +1528,101 @@ class _HomeScreenState extends State<HomeScreen>
     required List<Map<String, dynamic>> partners,
     Map<String, dynamic>? userData,
   }) {
-    if (partners.isEmpty) {
+    final connectionList = (userData?['connections'] as List?) ?? [];
+    final effectivePartners = partners.isNotEmpty
+        ? partners
+        : (connectionList.isNotEmpty && _cachedPartners.isNotEmpty ? _cachedPartners : partners);
+
+    if (effectivePartners.isEmpty) {
+      if (connectionList.isNotEmpty) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0C0B22).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.18), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          blurRadius: 36,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFF1E1B4B).withValues(alpha: 0.65),
+                            border: Border.all(
+                              color: const Color(0xFFA594F9).withValues(alpha: 0.4),
+                              width: 1.2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFA594F9).withValues(alpha: 0.3),
+                                blurRadius: 14,
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: Color(0xFFA594F9),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Syncing Astra Telemetry...',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Connecting to satellite network...',
+                                style: TextStyle(
+                                  color: AstraTheme.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
       return Align(
         alignment: Alignment.bottomCenter,
         child: SafeArea(
@@ -1654,8 +1765,8 @@ class _HomeScreenState extends State<HomeScreen>
       );
     }
 
-    final partnerIndex = _selectedPartnerIndex < partners.length ? _selectedPartnerIndex : 0;
-    final activePartner = partners[partnerIndex];
+    final partnerIndex = _selectedPartnerIndex < effectivePartners.length ? _selectedPartnerIndex : 0;
+    final activePartner = effectivePartners[partnerIndex];
     final pUid = activePartner['uid'] as String? ?? '';
     final pName = (activePartner['name'] as String?) ?? 'Partner';
     final pPhoto = activePartner['photoUrl'] as String?;
@@ -1723,16 +1834,17 @@ class _HomeScreenState extends State<HomeScreen>
                   const SizedBox(height: 16),
 
                   // Horizontal Partner Selector (if multiple friends)
-                  if (partners.length > 1) ...[
+                  if (effectivePartners.length > 1) ...[
                     SizedBox(
                       height: 42,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: partners.length,
+                        itemCount: effectivePartners.length,
                         itemBuilder: (ctx, idx) {
                           final isSel = idx == partnerIndex;
-                          final p = partners[idx];
+                          final p = effectivePartners[idx];
                           final name = p['name'] ?? 'Friend';
+                          final pUidTab = (p['uid'] as String?) ?? '';
                           return GestureDetector(
                             onTap: () => setState(() => _selectedPartnerIndex = idx),
                             child: Container(
@@ -1745,13 +1857,39 @@ class _HomeScreenState extends State<HomeScreen>
                                   color: isSel ? AstraTheme.primaryLight : AstraTheme.borderSubtle,
                                 ),
                               ),
-                              child: Text(
-                                name,
-                                style: TextStyle(
-                                  color: isSel ? Colors.white : AstraTheme.textSecondary,
-                                  fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                                  fontSize: 13,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: TextStyle(
+                                      color: isSel ? Colors.white : AstraTheme.textSecondary,
+                                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (pUidTab.isNotEmpty) ...[
+                                    StreamBuilder<int>(
+                                      stream: ChatService().streamUnreadCount(
+                                        conversationId: ChatService.getConversationId(currentUid, pUidTab),
+                                        currentUid: currentUid,
+                                      ),
+                                      builder: (context, unreadSnap) {
+                                        final count = unreadSnap.data ?? 0;
+                                        if (count <= 0) return const SizedBox.shrink();
+                                        return Container(
+                                          margin: const EdgeInsets.only(left: 6),
+                                          width: 8,
+                                          height: 8,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFF38BDF8),
+                                            shape: BoxShape.circle,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
                           );
@@ -2023,22 +2161,84 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _GlassContainer(
-                          borderRadius: 20,
-                          blur: 16,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          color: AstraTheme.primary.withValues(alpha: 0.40),
-                          border: Border.all(color: AstraTheme.primaryLight.withValues(alpha: 0.65), width: 1.2),
-                          onTap: () => _openChat(activePartner, isOnline),
-                          child: const Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.chat_bubble_rounded, color: AstraTheme.primaryLight, size: 20),
-                              SizedBox(height: 6),
-                              Text('Direct Chat', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
+                        child: StreamBuilder<int>(
+                          stream: pUid.isNotEmpty
+                              ? ChatService().streamUnreadCount(
+                                  conversationId: ChatService.getConversationId(currentUid, pUid),
+                                  currentUid: currentUid,
+                                )
+                              : Stream.value(0),
+                          builder: (context, unreadSnap) {
+                            final unreadCount = unreadSnap.data ?? 0;
+                            final hasUnread = unreadCount > 0;
+                            return _GlassContainer(
+                              borderRadius: 20,
+                              blur: 16,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              color: hasUnread
+                                  ? const Color(0xFF6366F1).withValues(alpha: 0.50)
+                                  : AstraTheme.primary.withValues(alpha: 0.40),
+                              border: Border.all(
+                                color: hasUnread
+                                    ? const Color(0xFF38BDF8)
+                                    : AstraTheme.primaryLight.withValues(alpha: 0.65),
+                                width: hasUnread ? 1.5 : 1.2,
+                              ),
+                              onTap: () => _openChat(activePartner, isOnline),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                alignment: Alignment.center,
+                                children: [
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.chat_bubble_rounded,
+                                        color: hasUnread ? const Color(0xFF38BDF8) : AstraTheme.primaryLight,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      const Text(
+                                        'Direct Chat',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (hasUnread)
+                                    Positioned(
+                                      top: -6,
+                                      right: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF38BDF8),
+                                          borderRadius: BorderRadius.circular(10),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF38BDF8).withValues(alpha: 0.6),
+                                              blurRadius: 8,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Text(
+                                          unreadCount > 99 ? '99+' : '$unreadCount',
+                                          style: const TextStyle(
+                                            color: Colors.black,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
