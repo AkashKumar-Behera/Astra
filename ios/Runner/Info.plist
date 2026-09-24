@@ -39,6 +39,8 @@
 		<string>location</string>
 		<string>fetch</string>
 		<string>remote-notification</string>
+		<string>audio</string>
+		<string>voip</string>
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>

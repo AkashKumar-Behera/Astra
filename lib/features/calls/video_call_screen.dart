@@ -321,32 +321,54 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
                 const SizedBox(height: 8),
 
-                // "📶 Good connection" pill badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.signal_cellular_alt_rounded,
-                          size: 14, color: Color(0xFF2ED573)),
-                      SizedBox(width: 6),
-                      Text(
-                        'Good connection',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
+                // "📶 Live diagnostics" pill badge
+                StreamBuilder<CallDiagnostics>(
+                  stream: _callService.onDiagnosticsChanged,
+                  initialData: _callService.diagnostics,
+                  builder: (context, diagSnap) {
+                    final diag = diagSnap.data ?? const CallDiagnostics();
+                    final kbSent = (diag.bytesSent / 1024).toStringAsFixed(1);
+                    final kbRec = (diag.bytesReceived / 1024).toStringAsFixed(1);
+                    final isConnected = _callService.status == CallStatus.connected;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isConnected
+                              ? const Color(0xFF2ED573).withValues(alpha: 0.5)
+                              : Colors.white.withValues(alpha: 0.2),
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isConnected
+                                ? Icons.signal_cellular_alt_rounded
+                                : Icons.wifi_find_rounded,
+                            size: 13,
+                            color: isConnected
+                                ? const Color(0xFF2ED573)
+                                : const Color(0xFFFFA502),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isConnected
+                                ? 'Live Stream (↑$kbSent KB • ↓$kbRec KB)'
+                                : 'Connecting Media...',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
 
                 const Spacer(),

@@ -231,32 +231,50 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
 
                 const SizedBox(height: 14),
 
-                // "📶 Good connection" pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.signal_cellular_alt_rounded,
-                          size: 15, color: Color(0xFF2ED573)),
-                      SizedBox(width: 6),
-                      Text(
-                        'Good connection',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500,
+                // Live Audio Diagnostics Pill
+                StreamBuilder<CallDiagnostics>(
+                  stream: _callService.onDiagnosticsChanged,
+                  initialData: _callService.diagnostics,
+                  builder: (context, diagSnap) {
+                    final diag = diagSnap.data ?? const CallDiagnostics();
+                    final kbSent = (diag.bytesSent / 1024).toStringAsFixed(1);
+                    final kbRec = (diag.bytesReceived / 1024).toStringAsFixed(1);
+                    final isConnected = _callService.status == CallStatus.connected;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isConnected
+                              ? const Color(0xFF2ED573).withValues(alpha: 0.4)
+                              : Colors.white.withValues(alpha: 0.12),
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.signal_cellular_alt_rounded,
+                            size: 15,
+                            color: isConnected ? const Color(0xFF2ED573) : Colors.amberAccent,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            isConnected
+                                ? 'Live Audio (↑$kbSent KB • ↓$kbRec KB)'
+                                : 'Connecting...',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
 
                 const Spacer(),

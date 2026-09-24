@@ -12,6 +12,20 @@ enum CallType { audio, video }
 enum CallRole { caller, receiver }
 enum CallStatus { idle, calling, ringing, connected, ended, declined, failed }
 
+class CallDiagnostics {
+  final String iceConnectionState;
+  final int bytesSent;
+  final int bytesReceived;
+  final bool isAudioActive;
+
+  const CallDiagnostics({
+    this.iceConnectionState = 'checking',
+    this.bytesSent = 0,
+    this.bytesReceived = 0,
+    this.isAudioActive = true,
+  });
+}
+
 class CallRecord {
   final String callId;
   final String partnerUid;
@@ -112,6 +126,11 @@ class WebRtcCallService {
 
   final StreamController<int> _durationController = StreamController<int>.broadcast();
   Stream<int> get onDurationChanged => _durationController.stream;
+
+  Timer? _statsTimer;
+  final StreamController<CallDiagnostics> _diagController = StreamController<CallDiagnostics>.broadcast();
+  Stream<CallDiagnostics> get onDiagnosticsChanged => _diagController.stream;
+  CallDiagnostics diagnostics = const CallDiagnostics();
 
   bool _renderersInitialized = false;
 
@@ -233,12 +252,7 @@ class WebRtcCallService {
 
     // 1. Get media streams (Opus HD Audio + adaptive video)
     final mediaConstraints = <String, dynamic>{
-      'audio': {
-        'echoCancellation': true,
-        'noiseSuppression': true,
-        'autoGainControl': true,
-        'highpassFilter': true,
-      },
+      'audio': true,
       'video': type == CallType.video
           ? {
               'mandatory': {
@@ -261,12 +275,14 @@ class WebRtcCallService {
       _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       localRenderer.srcObject = _localStream;
 
+      // Enable all audio tracks explicitly
+      _localStream?.getAudioTracks().forEach((track) {
+        track.enabled = true;
+      });
+
       // Set audio speakerphone defaults
       isSpeakerOn = type == CallType.video;
       Helper.setSpeakerphoneOn(isSpeakerOn);
-      _localStream?.getAudioTracks().forEach((track) {
-        track.enableSpeakerphone(isSpeakerOn);
-      });
     } catch (e) {
       debugPrint('[WebRtcCallService] Error getting user media: $e');
       _updateStatus(CallStatus.failed);
@@ -279,11 +295,13 @@ class WebRtcCallService {
       _peerConnection = await createPeerConnection(config);
 
       _localStream?.getTracks().forEach((track) {
+        track.enabled = true;
         _peerConnection?.addTrack(track, _localStream!);
       });
 
       _peerConnection?.onTrack = (RTCTrackEvent event) {
         debugPrint('[WebRtcCallService] onTrack kind=${event.track.kind}, streams=${event.streams.length}');
+        event.track.enabled = true;
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
           remoteRenderer.srcObject = _remoteStream;
@@ -292,6 +310,7 @@ class WebRtcCallService {
 
       _peerConnection?.onAddStream = (MediaStream stream) {
         debugPrint('[WebRtcCallService] onAddStream received with ${stream.getTracks().length} tracks');
+        stream.getAudioTracks().forEach((t) => t.enabled = true);
         _remoteStream = stream;
         remoteRenderer.srcObject = stream;
       };
@@ -381,12 +400,7 @@ class WebRtcCallService {
 
     // 1. Get media streams
     final mediaConstraints = <String, dynamic>{
-      'audio': {
-        'echoCancellation': true,
-        'noiseSuppression': true,
-        'autoGainControl': true,
-        'highpassFilter': true,
-      },
+      'audio': true,
       'video': type == CallType.video
           ? {
               'mandatory': {
@@ -409,11 +423,13 @@ class WebRtcCallService {
       _localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       localRenderer.srcObject = _localStream;
 
+      // Enable all audio tracks explicitly
+      _localStream?.getAudioTracks().forEach((track) {
+        track.enabled = true;
+      });
+
       isSpeakerOn = type == CallType.video;
       Helper.setSpeakerphoneOn(isSpeakerOn);
-      _localStream?.getAudioTracks().forEach((track) {
-        track.enableSpeakerphone(isSpeakerOn);
-      });
     } catch (e) {
       debugPrint('[WebRtcCallService] Error getting receiver media: $e');
       _updateStatus(CallStatus.failed);
@@ -426,11 +442,13 @@ class WebRtcCallService {
       _peerConnection = await createPeerConnection(config);
 
       _localStream?.getTracks().forEach((track) {
+        track.enabled = true;
         _peerConnection?.addTrack(track, _localStream!);
       });
 
       _peerConnection?.onTrack = (RTCTrackEvent event) {
         debugPrint('[WebRtcCallService] onTrack kind=${event.track.kind}, streams=${event.streams.length}');
+        event.track.enabled = true;
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
           remoteRenderer.srcObject = _remoteStream;
@@ -439,6 +457,7 @@ class WebRtcCallService {
 
       _peerConnection?.onAddStream = (MediaStream stream) {
         debugPrint('[WebRtcCallService] onAddStream received with ${stream.getTracks().length} tracks');
+        stream.getAudioTracks().forEach((t) => t.enabled = true);
         _remoteStream = stream;
         remoteRenderer.srcObject = stream;
       };
@@ -614,11 +633,40 @@ class WebRtcCallService {
     durationSeconds = 0;
     _updateStatus(CallStatus.connected);
     CallSoundService.instance.playConnectedChime();
+    Helper.setSpeakerphoneOn(isSpeakerOn);
+
+    _localStream?.getAudioTracks().forEach((t) => t.enabled = !isMuted);
+    _remoteStream?.getAudioTracks().forEach((t) => t.enabled = true);
 
     _durationTimer?.cancel();
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       durationSeconds++;
       _durationController.add(durationSeconds);
+    });
+
+    _statsTimer?.cancel();
+    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      if (_peerConnection == null) return;
+      try {
+        final stats = await _peerConnection!.getStats();
+        int sent = 0;
+        int rec = 0;
+        for (final report in stats) {
+          if (report.values.containsKey('bytesSent')) {
+            sent += int.tryParse(report.values['bytesSent'].toString()) ?? 0;
+          }
+          if (report.values.containsKey('bytesReceived')) {
+            rec += int.tryParse(report.values['bytesReceived'].toString()) ?? 0;
+          }
+        }
+        diagnostics = CallDiagnostics(
+          iceConnectionState: _peerConnection?.iceConnectionState.toString().split('.').last ?? 'connected',
+          bytesSent: sent,
+          bytesReceived: rec,
+          isAudioActive: !isMuted,
+        );
+        _diagController.add(diagnostics);
+      } catch (_) {}
     });
   }
 
@@ -748,6 +796,8 @@ class WebRtcCallService {
 
   Future<void> cleanUp() async {
     CallSoundService.instance.stop();
+    _statsTimer?.cancel();
+    _statsTimer = null;
     _durationTimer?.cancel();
     _durationTimer = null;
     _callSub?.cancel();
