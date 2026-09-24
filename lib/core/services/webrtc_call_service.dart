@@ -175,22 +175,25 @@ class WebRtcCallService {
             'Content-Type': 'application/json',
           },
           body: jsonEncode({'ttl': 86400}),
-        ).timeout(const Duration(seconds: 3));
+        ).timeout(const Duration(seconds: 4));
 
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
           final data = jsonDecode(response.body);
           if (data != null && data['iceServers'] != null) {
             final dynamic rawIce = data['iceServers'];
-            List<dynamic> cfList = [];
-            if (rawIce is List) cfList = rawIce;
-            if (rawIce is Map) cfList = [rawIce];
-            for (final s in cfList) {
-              if (s is Map<String, dynamic>) iceServers.add(s);
-              if (s is Map) iceServers.add(Map<String, dynamic>.from(s));
+            if (rawIce is Map) {
+              iceServers.insert(0, Map<String, dynamic>.from(rawIce));
+              debugPrint('[WebRtcCallService] Cloudflare TURN credentials generated successfully');
+            } else if (rawIce is List) {
+              for (final s in rawIce.reversed) {
+                if (s is Map) iceServers.insert(0, Map<String, dynamic>.from(s));
+              }
             }
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[WebRtcCallService] Cloudflare TURN generate error: $e');
+      }
     }
 
     return {
