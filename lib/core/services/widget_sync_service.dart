@@ -64,15 +64,20 @@ class WidgetSyncService {
 
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final filename = isMyProfile ? 'widget_my_avatar.png' : 'widget_friend_avatar.png';
+      final hash = photoUrl.hashCode.abs();
+      final filename = isMyProfile ? 'widget_my_avatar_$hash.png' : 'widget_friend_avatar_$hash.png';
       final targetPath = '${directory.path}/$filename';
+      final targetFile = File(targetPath);
+      if (targetFile.existsSync()) {
+        return targetPath;
+      }
+
       final response = await http.get(Uri.parse(photoUrl)).timeout(
         const Duration(seconds: 8),
       );
 
       if (response.statusCode == 200) {
-        final file = File(targetPath);
-        await file.writeAsBytes(response.bodyBytes);
+        await targetFile.writeAsBytes(response.bodyBytes);
         if (isMyProfile) {
           _cachedMyPhotoUrl = photoUrl;
           _cachedMyPhotoPath = targetPath;
@@ -134,9 +139,8 @@ class WidgetSyncService {
             : (friendNetwork.toLowerCase() == 'cellular' ? '📶 Mobile' : '📶 Offline');
         await HomeWidget.saveWidgetData<String>('friend_network', netLabel);
       }
-      if (friendPhotoPath != null) {
-        await HomeWidget.saveWidgetData<String>('friend_photo_path', friendPhotoPath);
-      }
+      // Always write friend_photo_path (null if no photo)
+      await HomeWidget.saveWidgetData<String?>('friend_photo_path', friendPhotoPath);
 
       // Save User (Self) Info
       if (myName != null && myName.isNotEmpty) {

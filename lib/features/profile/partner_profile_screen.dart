@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/services/presence_service.dart';
+import '../../core/services/reverse_geocoding_service.dart';
 import '../../core/services/webrtc_call_service.dart';
-import '../../core/theme/astra_theme.dart';
+import '../../core/services/location_rtdb_service.dart';
 import '../calls/voice_call_screen.dart';
 import '../calls/video_call_screen.dart';
 import '../chat/chat_screen.dart';
@@ -11,8 +13,11 @@ class PartnerProfileScreen extends StatefulWidget {
   final String partnerUid;
   final String partnerName;
   final String? partnerPhoto;
-  final String? locationName;
-  final double? distanceKm;
+  final double? partnerLat;
+  final double? partnerLng;
+  final double? myLat;
+  final double? myLng;
+  final dynamic updatedAt;
   final VoidCallback? onRemoveConnection;
 
   const PartnerProfileScreen({
@@ -20,8 +25,11 @@ class PartnerProfileScreen extends StatefulWidget {
     required this.partnerUid,
     required this.partnerName,
     this.partnerPhoto,
-    this.locationName,
-    this.distanceKm,
+    this.partnerLat,
+    this.partnerLng,
+    this.myLat,
+    this.myLng,
+    this.updatedAt,
     this.onRemoveConnection,
   });
 
@@ -31,6 +39,89 @@ class PartnerProfileScreen extends StatefulWidget {
 
 class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
   final String _myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String _resolvedAddress = 'Locating...';
+  bool _isLoadingAddress = false;
+  double? _liveLat;
+  double? _liveLng;
+  dynamic _liveUpdatedAt;
+
+  @override
+  void initState() {
+    super.initState();
+    _liveLat = widget.partnerLat;
+    _liveLng = widget.partnerLng;
+    _liveUpdatedAt = widget.updatedAt;
+    _loadLiveLocationAndAddress();
+  }
+
+  Future<void> _loadLiveLocationAndAddress() async {
+    try {
+      if (_liveLat == null || _liveLng == null) {
+        final rtdbLoc = await LocationRtdbService.getPartnerLocation(widget.partnerUid);
+        if (rtdbLoc != null && rtdbLoc['latitude'] != null) {
+          if (mounted) {
+            setState(() {
+              _liveLat = (rtdbLoc['latitude'] as num).toDouble();
+              _liveLng = (rtdbLoc['longitude'] as num).toDouble();
+              _liveUpdatedAt = rtdbLoc['updatedAt'];
+            });
+          }
+        }
+      }
+
+      if (_liveLat != null && _liveLng != null) {
+        setState(() => _isLoadingAddress = true);
+        final addr = await ReverseGeocodingService.getAddressFromCoordinates(_liveLat!, _liveLng!);
+        if (mounted) {
+          setState(() {
+            _resolvedAddress = addr;
+            _isLoadingAddress = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _resolvedAddress = 'Coordinates unavailable';
+            _isLoadingAddress = false;
+          });
+        }
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingAddress = false);
+    }
+  }
+
+  String _formatDistance() {
+    if (widget.myLat != null && widget.myLng != null && _liveLat != null && _liveLng != null) {
+      final meters = Geolocator.distanceBetween(
+        widget.myLat!,
+        widget.myLng!,
+        _liveLat!,
+        _liveLng!,
+      );
+      if (meters < 1000) {
+        return '${meters.round()} m away';
+      } else {
+        final km = meters / 1000.0;
+        return '${km.toStringAsFixed(1)} km away';
+      }
+    }
+    return '-- km away';
+  }
+
+  String _formatFreshness() {
+    if (_liveUpdatedAt == null) return 'Live';
+    int? ts;
+    if (_liveUpdatedAt is num) ts = (_liveUpdatedAt as num).toInt();
+    if (_liveUpdatedAt is String) ts = int.tryParse(_liveUpdatedAt as String);
+    if (ts == null) return 'Live';
+
+    final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ts));
+    if (diff.inSeconds < 45) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 
   Future<void> _startCall(CallType type) async {
     if (_myUid.isEmpty) return;
@@ -81,11 +172,11 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A12),
+      backgroundColor: const Color(0xFF07060E),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background celestial curve/glow
+          // Background celestial nebula glow
           Positioned(
             top: -60,
             left: -100,
@@ -96,7 +187,7 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF4834D4).withValues(alpha: 0.22),
+                    const Color(0xFF8B5CF6).withValues(alpha: 0.20),
                     Colors.transparent,
                   ],
                 ),
@@ -109,7 +200,7 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Column(
                 children: [
-                  // Top Bar: Back | Astra | More
+                  // Top Bar: Back | Astra Cosmic Title | More
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -122,14 +213,14 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.auto_awesome,
-                              size: 20, color: Color(0xFFA594F9)),
+                              size: 18, color: Color(0xFFA594F9)),
                           SizedBox(height: 2),
                           Text(
                             'Astra',
                             style: TextStyle(
                               color: Color(0xFFA594F9),
                               fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 0.5,
                             ),
                           ),
@@ -143,15 +234,15 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // Avatar with presence dot
+                  // Avatar with Presence & Glowing Orbit
                   StreamBuilder<PartnerPresence>(
                     stream: PresenceService.streamPartnerPresence(widget.partnerUid),
                     builder: (context, snapshot) {
                       final isOnline = snapshot.data?.isOnline ?? false;
                       final statusLabel = isOnline
-                          ? '🟢 Online'
+                          ? 'Online'
                           : (snapshot.data?.statusText ?? 'Offline');
 
                       return Column(
@@ -160,62 +251,66 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                             alignment: Alignment.bottomRight,
                             children: [
                               Container(
-                                width: 140,
-                                height: 140,
-                                padding: const EdgeInsets.all(3.5),
+                                width: 130,
+                                height: 130,
+                                padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF6C5CE7).withValues(alpha: 0.35),
-                                      blurRadius: 30,
+                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.45),
+                                      blurRadius: 36,
                                       spreadRadius: 4,
                                     ),
                                   ],
                                   border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.3),
-                                    width: 2,
+                                    color: const Color(0xFF8B5CF6),
+                                    width: 2.2,
                                   ),
                                 ),
-                                child: CircleAvatar(
-                                  backgroundColor: AstraTheme.primary.withValues(alpha: 0.3),
-                                  backgroundImage: widget.partnerPhoto != null
-                                      ? NetworkImage(widget.partnerPhoto!)
-                                      : null,
-                                  child: widget.partnerPhoto == null
-                                      ? Text(
-                                          widget.partnerName.isNotEmpty
-                                              ? widget.partnerName[0].toUpperCase()
-                                              : 'P',
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 44,
-                                              fontWeight: FontWeight.bold),
+                                child: ClipOval(
+                                  child: widget.partnerPhoto != null && widget.partnerPhoto!.isNotEmpty
+                                      ? Image.network(
+                                          widget.partnerPhoto!,
+                                          fit: BoxFit.cover,
                                         )
-                                      : null,
+                                      : Container(
+                                          color: const Color(0xFF1E1B4B),
+                                          child: Center(
+                                            child: Text(
+                                              widget.partnerName.isNotEmpty
+                                                  ? widget.partnerName[0].toUpperCase()
+                                                  : '✦',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 42,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
                                 ),
                               ),
-                              if (isOnline)
-                                Positioned(
-                                  bottom: 8,
-                                  right: 8,
-                                  child: Container(
-                                    width: 18,
-                                    height: 18,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2ED573),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: const Color(0xFF090A12),
-                                        width: 3,
-                                      ),
+                              Positioned(
+                                bottom: 6,
+                                right: 6,
+                                child: Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    color: isOnline ? const Color(0xFF10B981) : const Color(0xFF6B7280),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFF07060E),
+                                      width: 3,
                                     ),
                                   ),
                                 ),
+                              ),
                             ],
                           ),
 
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
 
                           // Name
                           Text(
@@ -224,30 +319,43 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
+                              letterSpacing: 0.2,
                             ),
                           ),
 
                           const SizedBox(height: 4),
 
                           // Status text
-                          Text(
-                            statusLabel,
-                            style: TextStyle(
-                              color: isOnline
-                                  ? const Color(0xFF2ED573)
-                                  : Colors.white54,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: isOnline ? const Color(0xFF10B981) : const Color(0xFF6B7280),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isOnline ? 'Online • Just now' : statusLabel,
+                                style: TextStyle(
+                                  color: isOnline ? const Color(0xFF10B981) : Colors.white60,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
 
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
 
                           const Text(
                             'Here with you • Always',
                             style: TextStyle(
                               color: Colors.white38,
-                              fontSize: 13,
+                              fontSize: 12.5,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -256,7 +364,7 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                     },
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
                   // 3 Action Buttons: Call | Video | Chat
                   Row(
@@ -287,17 +395,17 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
-                  // Live Location Card
+                  // Real Live Location Card (Geocoded)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131522),
-                      borderRadius: BorderRadius.circular(20),
+                      color: const Color(0xFF121024),
+                      borderRadius: BorderRadius.circular(22),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: const Color(0xFF2A234E),
                       ),
                     ),
                     child: Column(
@@ -308,18 +416,18 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6C5CE7).withValues(alpha: 0.2),
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.near_me_rounded,
-                                  color: Color(0xFFA594F9), size: 18),
+                                  color: Color(0xFFC084FC), size: 18),
                             ),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
+                                  const Text(
                                     'Live Location',
                                     style: TextStyle(
                                       color: Colors.white,
@@ -327,10 +435,10 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text(
-                                    'Updated just now',
-                                    style: TextStyle(
+                                    'Updated ${_formatFreshness()}',
+                                    style: const TextStyle(
                                       color: Colors.white38,
                                       fontSize: 12,
                                     ),
@@ -338,54 +446,65 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded,
-                                color: Colors.white38, size: 20),
+                            IconButton(
+                              icon: const Icon(Icons.refresh_rounded, color: Color(0xFFA78BFA), size: 20),
+                              onPressed: _loadLiveLocationAndAddress,
+                            ),
                           ],
                         ),
 
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
 
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.04),
-                            borderRadius: BorderRadius.circular(14),
+                            color: const Color(0xFF1A1733),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFF322858)),
                           ),
                           child: Row(
                             children: [
                               const Icon(Icons.location_on_rounded,
-                                  color: Color(0xFFA594F9), size: 22),
-                              const SizedBox(width: 10),
+                                  color: Color(0xFFC084FC), size: 24),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    _isLoadingAddress
+                                        ? const SizedBox(
+                                            height: 16,
+                                            width: 16,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA78BFA)),
+                                          )
+                                        : Text(
+                                            _resolvedAddress,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                    const SizedBox(height: 3),
                                     Text(
-                                      widget.locationName ?? 'Bhubaneswar, Odisha',
+                                      '${_formatDistance()} • ${_formatFreshness()}',
                                       style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '${widget.distanceKm?.toStringAsFixed(1) ?? "1.2"} km away • 2 min ago',
-                                      style: const TextStyle(
-                                        color: Colors.white38,
+                                        color: Color(0xFFA594F9),
                                         fontSize: 12,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               GestureDetector(
                                 onTap: () => Navigator.of(context).pop(),
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
+                                      horizontal: 12, vertical: 8),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF4834D4),
+                                    color: const Color(0xFF6D28D9),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: const Text(
@@ -393,7 +512,7 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.w500,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -412,10 +531,10 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131522),
+                      color: const Color(0xFF121024),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: const Color(0xFF2A234E),
                       ),
                     ),
                     child: const Row(
@@ -437,7 +556,7 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                               ),
                               SizedBox(height: 2),
                               Text(
-                                'Live location is on',
+                                'Live continuous location is active',
                                 style: TextStyle(
                                   color: Colors.white38,
                                   fontSize: 12,
@@ -459,16 +578,16 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131522),
+                      color: const Color(0xFF121024),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: const Color(0xFF2A234E),
                       ),
                     ),
                     child: Column(
                       children: [
                         _buildSettingRow(
-                          icon: Icons.person_outline_rounded,
+                          icon: Icons.notifications_none_rounded,
                           label: 'Notifications',
                           trailingText: 'On',
                         ),
@@ -476,20 +595,21 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
                         _buildSettingRow(
                           icon: Icons.near_me_outlined,
                           label: 'Location sharing',
-                          trailingText: 'While using app',
+                          trailingText: 'Realtime active',
                         ),
                         Divider(color: Colors.white.withValues(alpha: 0.05)),
                         _buildSettingRow(
                           icon: Icons.shield_outlined,
-                          label: 'Privacy',
+                          label: 'End-to-End Encryption',
+                          trailingText: 'Active',
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
-                  // Remove Connection Outlined Button
+                  // Remove Connection Button
                   GestureDetector(
                     onTap: widget.onRemoveConnection,
                     child: Container(
@@ -553,10 +673,10 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF131522),
+          color: const Color(0xFF121024),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: Colors.white.withValues(alpha: 0.06),
+            color: const Color(0xFF2A234E),
           ),
         ),
         child: Column(
@@ -568,7 +688,7 @@ class _PartnerProfileScreenState extends State<PartnerProfileScreen> {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13.5,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

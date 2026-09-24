@@ -741,6 +741,7 @@ class _HomeScreenState extends State<HomeScreen>
                           return _buildDraggableTelemetrySheet(
                             currentUid: currentUser.uid,
                             partners: partners,
+                            userData: userData,
                           );
                         },
                       );
@@ -749,6 +750,7 @@ class _HomeScreenState extends State<HomeScreen>
                   return _buildDraggableTelemetrySheet(
                     currentUid: currentUser.uid,
                     partners: partners,
+                    userData: userData,
                   );
                 },
               ),
@@ -1507,6 +1509,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildDraggableTelemetrySheet({
     required String currentUid,
     required List<Map<String, dynamic>> partners,
+    Map<String, dynamic>? userData,
   }) {
     if (partners.isEmpty) {
       return Align(
@@ -1659,11 +1662,11 @@ class _HomeScreenState extends State<HomeScreen>
     final pPhone = (activePartner['phoneNumber'] as String?) ?? '';
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.16,
-      minChildSize: 0.12,
-      maxChildSize: 0.85,
+      initialChildSize: 0.20,
+      minChildSize: 0.20,
+      maxChildSize: 0.48,
       snap: true,
-      snapSizes: const [0.16, 0.50, 0.85],
+      snapSizes: const [0.20, 0.48],
       builder: (context, scrollController) {
         return ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
@@ -1771,6 +1774,11 @@ class _HomeScreenState extends State<HomeScreen>
                                 partnerUid: pUid,
                                 partnerName: pName,
                                 partnerPhoto: pPhoto,
+                                partnerLat: (activePartner['latitude'] as num?)?.toDouble(),
+                                partnerLng: (activePartner['longitude'] as num?)?.toDouble(),
+                                myLat: _currentPosition?.latitude ?? (userData?['latitude'] as num?)?.toDouble(),
+                                myLng: _currentPosition?.longitude ?? (userData?['longitude'] as num?)?.toDouble(),
+                                updatedAt: activePartner['updatedAt'],
                               ),
                             ),
                           );

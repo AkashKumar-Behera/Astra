@@ -69,7 +69,7 @@ Future<void> handleInlineReply(NotificationResponse response) async {
   }
 }
 
-/// Helper to show local decrypted notification
+/// Helper to show local decrypted notification with WhatsApp style grouping & inline reply
 Future<void> showLocalDecryptedNotification({
   required String messageId,
   required String senderName,
@@ -77,7 +77,26 @@ Future<void> showLocalDecryptedNotification({
   required String conversationId,
   required String bodyText,
 }) async {
-  const androidDetails = AndroidNotificationDetails(
+  final groupKey = 'com.astra.always.CHAT_$conversationId';
+  final person = Person(
+    name: senderName,
+    key: senderId,
+  );
+
+  final messagingStyle = MessagingStyleInformation(
+    person,
+    conversationTitle: senderName,
+    groupConversation: false,
+    messages: [
+      Message(
+        bodyText,
+        DateTime.now(),
+        person,
+      ),
+    ],
+  );
+
+  final androidDetails = AndroidNotificationDetails(
     'astra_chat_messages',
     'Astra Messages',
     channelDescription: 'End-to-end encrypted chat messages',
@@ -85,13 +104,17 @@ Future<void> showLocalDecryptedNotification({
     priority: Priority.high,
     showWhen: true,
     icon: 'ic_notification',
-    color: Color(0xFF6C5CE7),
+    color: const Color(0xFF8B5CF6),
     category: AndroidNotificationCategory.message,
+    styleInformation: messagingStyle,
+    groupKey: groupKey,
     actions: [
-      AndroidNotificationAction(
+      const AndroidNotificationAction(
         'reply_action',
         'Reply',
         icon: DrawableResourceAndroidBitmap('ic_notification'),
+        allowGeneratedReplies: true,
+        showsUserInterface: false,
         inputs: [
           AndroidNotificationActionInput(
             label: 'Type a message...',
@@ -108,7 +131,7 @@ Future<void> showLocalDecryptedNotification({
     categoryIdentifier: 'astra_chat_category',
   );
 
-  const notificationDetails = NotificationDetails(
+  final notificationDetails = NotificationDetails(
     android: androidDetails,
     iOS: iosDetails,
   );
@@ -128,6 +151,30 @@ Future<void> showLocalDecryptedNotification({
     notificationDetails: notificationDetails,
     payload: payloadJson,
   );
+
+  // Group summary notification for clean WhatsApp style bundling
+  if (Platform.isAndroid) {
+    final summaryDetails = AndroidNotificationDetails(
+      'astra_chat_messages',
+      'Astra Messages',
+      channelDescription: 'End-to-end encrypted chat messages',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: 'ic_notification',
+      color: const Color(0xFF8B5CF6),
+      groupKey: groupKey,
+      setAsGroupSummary: true,
+      category: AndroidNotificationCategory.message,
+    );
+
+    await _localNotifications.show(
+      id: conversationId.hashCode,
+      title: senderName,
+      body: bodyText,
+      notificationDetails: NotificationDetails(android: summaryDetails),
+      payload: payloadJson,
+    );
+  }
 }
 
 /// Top-level background message handler for FCM
