@@ -9,6 +9,7 @@ import 'core/services/websocket_service.dart';
 import 'core/services/widget_sync_service.dart';
 import 'core/services/webrtc_call_service.dart';
 import 'core/theme/astra_theme.dart';
+import 'features/calls/global_in_call_overlay.dart';
 import 'features/calls/incoming_call_screen.dart';
 import 'features/splash/splash_screen.dart';
 
@@ -106,6 +107,9 @@ class AstraApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AstraTheme.darkTheme,
       home: const SplashScreen(),
+      builder: (context, child) => GlobalInCallOverlay(
+        child: child ?? const SizedBox(),
+      ),
     );
   }
 }

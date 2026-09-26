@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -234,43 +233,7 @@ class _HomeScreenState extends State<HomeScreen>
         _precacheLocalArea(position.latitude, position.longitude);
       }
 
-      // 3. Continuous real-time GPS stream so user's pin tracks them live
-      _positionStreamSub?.cancel();
-      final streamSettings = Platform.isIOS
-          ? AppleSettings(
-              accuracy: LocationAccuracy.medium,
-              activityType: ActivityType.otherNavigation,
-              distanceFilter: 10,
-              pauseLocationUpdatesAutomatically: true,
-              showBackgroundLocationIndicator: false,
-            )
-          : AndroidSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 5,
-              intervalDuration: const Duration(seconds: 5),
-            );
-
-      _positionStreamSub = Geolocator.getPositionStream(
-        locationSettings: streamSettings,
-      ).listen((pos) async {
-        if (mounted) {
-          setState(() => _currentPosition = pos);
-        }
-        final uid = FirebaseAuth.instance.currentUser?.uid;
-        if (uid != null) {
-          await LocationRtdbService.updateLocation(
-            uid: uid,
-            latitude: pos.latitude,
-            longitude: pos.longitude,
-          );
-          FirebaseFirestore.instance.collection('users').doc(uid).update({
-            'latitude': pos.latitude,
-            'longitude': pos.longitude,
-            'lastSeen': FieldValue.serverTimestamp(),
-          }).catchError((_) {});
-        }
-      });
-
+      // 3. Update database with initial launch position (Zero continuous GPS polling to prevent heating & battery drain)
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         await LocationRtdbService.updateLocation(

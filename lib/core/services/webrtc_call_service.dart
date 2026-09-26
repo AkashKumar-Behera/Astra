@@ -127,6 +127,17 @@ class WebRtcCallService {
   final StreamController<int> _durationController = StreamController<int>.broadcast();
   Stream<int> get onDurationChanged => _durationController.stream;
 
+  bool isMinimized = false;
+  final StreamController<bool> _minimizedController = StreamController<bool>.broadcast();
+  Stream<bool> get onMinimizedChanged => _minimizedController.stream;
+
+  void setMinimized(bool val) {
+    if (isMinimized != val) {
+      isMinimized = val;
+      _minimizedController.add(val);
+    }
+  }
+
   Timer? _statsTimer;
   final StreamController<CallDiagnostics> _diagController = StreamController<CallDiagnostics>.broadcast();
   Stream<CallDiagnostics> get onDiagnosticsChanged => _diagController.stream;
@@ -842,5 +853,6 @@ class WebRtcCallService {
     isMuted = false;
     isCameraOff = false;
     isSpeakerOn = true;
+    setMinimized(false);
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -104,6 +105,10 @@ Future<void> showLocalDecryptedNotification({
     category: AndroidNotificationCategory.message,
     styleInformation: messagingStyle,
     groupKey: groupKey,
+    sound: const RawResourceAndroidNotificationSound('astra_chime'),
+    playSound: true,
+    enableVibration: true,
+    vibrationPattern: Int64List.fromList([0, 150, 80, 150]),
     actions: [
       const AndroidNotificationAction(
         'reply_action',
@@ -304,11 +309,15 @@ class NotificationService {
                 AndroidFlutterLocalNotificationsPlugin>();
         if (androidPlugin != null) {
           await androidPlugin.createNotificationChannel(
-            const AndroidNotificationChannel(
+            AndroidNotificationChannel(
               'astra_chat_messages',
               'Astra Messages',
               description: 'End-to-end encrypted chat messages',
               importance: Importance.max,
+              sound: const RawResourceAndroidNotificationSound('astra_chime'),
+              playSound: true,
+              enableVibration: true,
+              vibrationPattern: Int64List.fromList([0, 150, 80, 150]),
             ),
           );
         }

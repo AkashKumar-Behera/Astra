@@ -6,11 +6,17 @@ import '../../core/theme/astra_theme.dart';
 class VoiceCallScreen extends StatefulWidget {
   final String partnerName;
   final String? partnerPhoto;
+  final String? callId;
+  final String? partnerUid;
+  final bool? isCaller;
 
   const VoiceCallScreen({
     super.key,
     required this.partnerName,
     this.partnerPhoto,
+    this.callId,
+    this.partnerUid,
+    this.isCaller,
   });
 
   @override
@@ -36,9 +42,15 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
     }
   }
 
+  void _minimizeCall() {
+    _callService.setMinimized(true);
+    _safePop();
+  }
+
   @override
   void initState() {
     super.initState();
+    _callService.setMinimized(false);
     _isMuted = _callService.isMuted;
     _isSpeaker = _callService.isSpeakerOn;
 
@@ -69,6 +81,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
   }
 
   Future<void> _endCall() async {
+    _callService.setMinimized(false);
     await _callService.endCall();
     _safePop();
   }
@@ -95,42 +108,48 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
             ? 'Calling...'
             : 'Ringing...';
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF090A12),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Ambient cosmic radial glow
-          Center(
-            child: Container(
-              width: 340,
-              height: 340,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF6C5CE7).withValues(alpha: 0.18),
-                    Colors.transparent,
-                  ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _minimizeCall();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF090A12),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Ambient cosmic radial glow
+            Center(
+              child: Container(
+                width: 340,
+                height: 340,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF6C5CE7).withValues(alpha: 0.18),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
 
-          SafeArea(
-            child: Column(
-              children: [
-                // Top App Bar: Back | Astra | More
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                            color: Colors.white70, size: 20),
-                        onPressed: _endCall,
-                      ),
+            SafeArea(
+              child: Column(
+                children: [
+                  // Top App Bar: Back (Minimize) | Astra | More
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                              color: Colors.white70, size: 20),
+                          tooltip: 'Minimize call',
+                          onPressed: _minimizeCall,
+                        ),
                       const Text(
                         'Astra',
                         style: TextStyle(
@@ -353,8 +372,9 @@ class _VoiceCallScreenState extends State<VoiceCallScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildControl({
     required IconData icon,
