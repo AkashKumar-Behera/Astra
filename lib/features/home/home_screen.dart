@@ -20,7 +20,6 @@ import '../../core/services/webrtc_call_service.dart';
 import '../../core/services/map_cache_service.dart';
 import '../../core/theme/astra_theme.dart';
 import '../chat/chat_screen.dart';
-import '../../core/services/background_location_service.dart';
 import '../calls/voice_call_screen.dart';
 import '../calls/video_call_screen.dart';
 import '../profile/partner_profile_screen.dart';
@@ -55,7 +54,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   Position? _currentPosition;
-  StreamSubscription<Position>? _positionStreamSub;
   late AnimationController _pulseController;
   final MapController _mapController = MapController();
   int _selectedPartnerIndex = 0;
@@ -81,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen>
       PresenceService.instance.init(uid);
       TelemetryService.startTelemetrySync(uid);
       LocationRtdbService.startLocationRequestListener(uid);
-      BackgroundLocationManager.startContinuousTracking(uid);
     }
   }
 
@@ -109,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
-    _positionStreamSub?.cancel();
     LocationRtdbService.disposeLocationRequestListener();
     TelemetryService.dispose();
     PresenceService.instance.dispose();
