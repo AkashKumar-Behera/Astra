@@ -30,6 +30,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   late StreamSubscription<CallStatus> _statusSub;
   late StreamSubscription<int> _durationSub;
+  late StreamSubscription<bool> _screenShareSub;
 
   int _seconds = 0;
   bool _isMuted = false;
@@ -37,6 +38,8 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _isSpeaker = true;
   bool _showControls = true;
   bool _isSwapped = false;
+  bool _isScreenSharing = false;
+  double _dragDistance = 0;
   Timer? _controlsTimer;
 
   double _pipX = 20;
@@ -64,6 +67,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _isMuted = _callService.isMuted;
     _isCameraOff = _callService.isCameraOff;
     _isSpeaker = _callService.isSpeakerOn;
+    _isScreenSharing = _callService.isScreenSharing;
 
     _durationSub = _callService.onDurationChanged.listen((sec) {
       if (mounted) setState(() => _seconds = sec);
@@ -75,6 +79,10 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
           status == CallStatus.failed) {
         _safePop();
       }
+    });
+
+    _screenShareSub = _callService.onScreenShareChanged.listen((sharing) {
+      if (mounted) setState(() => _isScreenSharing = sharing);
     });
 
     _resetControlsTimer();
@@ -95,7 +103,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     setState(() {
       _showControls = !_showControls;
     });
-    _resetControlsTimer();
+    if (_showControls) {
+      _resetControlsTimer();
+    }
   }
 
   @override
@@ -103,6 +113,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _controlsTimer?.cancel();
     _statusSub.cancel();
     _durationSub.cancel();
+    _screenShareSub.cancel();
     super.dispose();
   }
 
@@ -146,6 +157,32 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     await _callService.switchCamera();
     if (mounted) setState(() {});
     _resetControlsTimer();
+  }
+
+  Future<void> _toggleScreenShare() async {
+    final success = await _callService.toggleScreenShare();
+    if (!mounted) return;
+    setState(() {
+      _isScreenSharing = _callService.isScreenSharing;
+    });
+    _resetControlsTimer();
+    if (success && _isScreenSharing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.screen_share_rounded, color: Color(0xFF00D2D3), size: 20),
+              SizedBox(width: 10),
+              Text('Live screen sharing active', style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          backgroundColor: const Color(0xFF1E1F35),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
   }
 
   @override
@@ -272,11 +309,24 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               top: _pipY,
               right: _pipX,
               child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanStart: (_) {
+                  _dragDistance = 0;
+                },
                 onPanUpdate: (details) {
+                  _dragDistance += details.delta.distance;
                   setState(() {
                     _pipX = (_pipX - details.delta.dx).clamp(16.0, 200.0);
                     _pipY = (_pipY + details.delta.dy).clamp(80.0, 500.0);
                   });
+                },
+                onPanEnd: (_) {
+                  if (_dragDistance < 10) {
+                    setState(() {
+                      _isSwapped = !_isSwapped;
+                    });
+                    _resetControlsTimer();
+                  }
                 },
                 onTap: () {
                   setState(() {
@@ -329,6 +379,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                           bottom: 6,
                           right: 6,
                           child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: _switchCamera,
                             child: Container(
                               padding: const EdgeInsets.all(5),
@@ -349,16 +400,25 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         Positioned(
                           top: 6,
                           left: 6,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(
-                              Icons.swap_horiz_rounded,
-                              color: Colors.white70,
-                              size: 14,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              setState(() {
+                                _isSwapped = !_isSwapped;
+                              });
+                              _resetControlsTimer();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.65),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(
+                                Icons.swap_horiz_rounded,
+                                color: Colors.white70,
+                                size: 14,
+                              ),
                             ),
                           ),
                         ),
@@ -484,13 +544,55 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                         },
                       ),
 
+                      // Screen Sharing Active Pill Indicator
+                      if (_isScreenSharing)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF00D2D3).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFF00D2D3), width: 1.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00D2D3).withValues(alpha: 0.35),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.screen_share_rounded, color: Color(0xFF00D2D3), size: 15),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Screen sharing is active',
+                                style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: _toggleScreenShare,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFF4757),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Text('Stop', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
                       const Spacer(),
 
-                      // Bottom Call Controls: Mute | Camera | Speaker | Switch Camera
+                      // Bottom Call Controls: Mute | Camera | Speaker | Flip | Screen Share
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             _buildControl(
                               icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
@@ -520,6 +622,15 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                               isActive: false,
                               onTap: _switchCamera,
                             ),
+                            _buildControl(
+                              icon: _isScreenSharing
+                                  ? Icons.stop_screen_share_rounded
+                                  : Icons.screen_share_rounded,
+                              label: _isScreenSharing ? 'Stop' : 'Share',
+                              isActive: _isScreenSharing,
+                              activeColor: const Color(0xFF00D2D3),
+                              onTap: _toggleScreenShare,
+                            ),
                           ],
                         ),
                       ),
@@ -530,6 +641,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                       Column(
                         children: [
                           GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: _endCall,
                             child: Container(
                               width: 68,
@@ -581,38 +693,50 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     required String label,
     required bool isActive,
     required VoidCallback onTap,
+    Color? activeColor,
   }) {
+    final effectiveActiveColor = activeColor ?? Colors.white;
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Column(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: isActive
-                  ? Colors.white.withValues(alpha: 0.35)
+                  ? effectiveActiveColor.withValues(alpha: 0.3)
                   : Colors.black.withValues(alpha: 0.45),
               shape: BoxShape.circle,
               border: Border.all(
                 color: isActive
-                    ? Colors.white.withValues(alpha: 0.6)
+                    ? effectiveActiveColor.withValues(alpha: 0.8)
                     : Colors.white.withValues(alpha: 0.2),
                 width: 1.5,
               ),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: effectiveActiveColor.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      )
+                    ]
+                  : null,
             ),
             child: Icon(
               icon,
-              color: Colors.white,
-              size: 26,
+              color: isActive && activeColor != null ? effectiveActiveColor : Colors.white,
+              size: 24,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
+            style: TextStyle(
+              color: isActive && activeColor != null ? effectiveActiveColor : Colors.white70,
+              fontSize: 11.5,
               fontWeight: FontWeight.w500,
             ),
           ),

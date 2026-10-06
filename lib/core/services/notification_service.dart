@@ -11,9 +11,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../firebase_options.dart';
+import '../../features/calls/incoming_call_screen.dart';
+import '../../features/calls/video_call_screen.dart';
+import '../../features/calls/voice_call_screen.dart';
 import '../../features/chat/chat_screen.dart';
 import '../crypto/crypto_service.dart';
 import 'chat_service.dart';
+import 'webrtc_call_service.dart';
 
 final FlutterLocalNotificationsPlugin _localNotifications =
     FlutterLocalNotificationsPlugin();
@@ -179,6 +183,73 @@ Future<void> showLocalDecryptedNotification({
   }
 }
 
+const int incomingCallNotificationId = 9999;
+const int ongoingCallNotificationId = 8888;
+
+/// Top-level helper to show incoming call notification
+Future<void> showIncomingCallNotification({
+  required String callId,
+  required String callerUid,
+  required String callerName,
+  String? callerPhoto,
+  required String callType,
+}) async {
+  try {
+    final androidDetails = AndroidNotificationDetails(
+      'astra_calls',
+      'Astra Incoming Calls',
+      channelDescription: 'Incoming voice and video calls',
+      importance: Importance.max,
+      priority: Priority.max,
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.call,
+      sound: const RawResourceAndroidNotificationSound('astra_chime'),
+      playSound: true,
+      enableVibration: true,
+      icon: 'ic_notification',
+      color: const Color(0xFF8B5CF6),
+      actions: const [
+        AndroidNotificationAction(
+          'accept_call',
+          'Accept',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'decline_call',
+          'Decline',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+      ],
+    );
+    final iosDetails = const DarwinNotificationDetails(
+      sound: 'astra_chime.aiff',
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      categoryIdentifier: 'astra_call_category',
+    );
+    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+    await _localNotifications.show(
+      id: incomingCallNotificationId,
+      title: 'Incoming ${callType.toUpperCase()} Call',
+      body: '$callerName is calling you...',
+      notificationDetails: details,
+      payload: jsonEncode({
+        'type': 'incoming_call',
+        'callId': callId,
+        'callerUid': callerUid,
+        'callerName': callerName,
+        'callerPhoto': callerPhoto,
+        'callType': callType,
+      }),
+    );
+  } catch (e) {
+    debugPrint('[NotificationService] showIncomingCallNotification error: $e');
+  }
+}
+
 /// Top-level background message handler for FCM
 ///
 /// Decrypts encrypted message payloads locally on device and displays
@@ -193,7 +264,26 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   } catch (_) {}
 
   final data = message.data;
-  if (data['type'] != 'chat_message') return;
+  final msgType = data['type'] as String?;
+
+  if (msgType == 'incoming_call' || msgType == 'call') {
+    final callId = data['callId'] as String? ?? '';
+    final callerUid = data['callerUid'] as String? ?? '';
+    final callerName = data['callerName'] as String? ?? 'Partner';
+    final callerPhoto = data['callerPhoto'] as String?;
+    final callType = data['callType'] as String? ?? 'audio';
+
+    await showIncomingCallNotification(
+      callId: callId,
+      callerUid: callerUid,
+      callerName: callerName,
+      callerPhoto: callerPhoto,
+      callType: callType,
+    );
+    return;
+  }
+
+  if (msgType != 'chat_message') return;
 
   final ciphertext = data['ciphertext'] as String?;
   final iv = data['iv'] as String?;
@@ -278,6 +368,28 @@ class NotificationService {
               DarwinNotificationCategoryOption.customDismissAction,
             },
           ),
+          DarwinNotificationCategory(
+            'astra_call_category',
+            actions: [
+              DarwinNotificationAction.plain(
+                'accept_call',
+                'Accept',
+                options: {
+                  DarwinNotificationActionOption.foreground,
+                },
+              ),
+              DarwinNotificationAction.plain(
+                'decline_call',
+                'Decline',
+                options: {
+                  DarwinNotificationActionOption.destructive,
+                },
+              ),
+            ],
+            options: {
+              DarwinNotificationCategoryOption.customDismissAction,
+            },
+          ),
         ],
       );
       final initSettings = InitializationSettings(
@@ -292,6 +404,13 @@ class NotificationService {
             handleInlineReply(response);
             return;
           }
+          if (response.actionId == 'decline_call') {
+            final uid = _auth.currentUser?.uid ?? '';
+            final callId = WebRtcCallService.instance.currentCallId ?? '';
+            WebRtcCallService.instance.declineCall(callId: callId, myUid: uid);
+            cancelIncomingCallNotification();
+            return;
+          }
           if (response.payload != null) {
             try {
               final payload = jsonDecode(response.payload!) as Map<String, dynamic>;
@@ -302,7 +421,7 @@ class NotificationService {
         onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
       );
 
-      // 2. Create Android high priority notification channel
+      // 2. Create Android high priority notification channels
       if (Platform.isAndroid) {
         final androidPlugin = _localNotifications
             .resolvePlatformSpecificImplementation<
@@ -318,6 +437,28 @@ class NotificationService {
               playSound: true,
               enableVibration: true,
               vibrationPattern: Int64List.fromList([0, 150, 80, 150]),
+            ),
+          );
+          await androidPlugin.createNotificationChannel(
+            AndroidNotificationChannel(
+              'astra_calls',
+              'Astra Incoming Calls',
+              description: 'Incoming voice and video calls',
+              importance: Importance.max,
+              sound: const RawResourceAndroidNotificationSound('astra_chime'),
+              playSound: true,
+              enableVibration: true,
+              vibrationPattern: Int64List.fromList([0, 1000, 800, 1000, 800]),
+            ),
+          );
+          await androidPlugin.createNotificationChannel(
+            const AndroidNotificationChannel(
+              'astra_active_calls',
+              'Astra Active Calls',
+              description: 'Ongoing voice and video calls',
+              importance: Importance.low,
+              playSound: false,
+              enableVibration: false,
             ),
           );
         }
@@ -563,10 +704,67 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Route to chat screen when notification is tapped
+  /// Route to chat screen or active call when notification is tapped
   static Future<void> handleNotificationRouting(
       Map<String, dynamic> data) async {
     final type = data['type'] as String?;
+
+    if (type == 'incoming_call') {
+      final callId = data['callId'] as String? ?? '';
+      final callerUid = data['callerUid'] as String? ?? '';
+      final callerName = data['callerName'] as String? ?? 'Partner';
+      final callerPhoto = data['callerPhoto'] as String?;
+      final typeStr = data['callType'] as String? ?? 'audio';
+      final callType = typeStr == 'video' ? CallType.video : CallType.audio;
+
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (_) => IncomingCallScreen(
+            callId: callId,
+            callerUid: callerUid,
+            callerName: callerName,
+            callerPhoto: callerPhoto,
+            type: callType,
+            myUid: _auth.currentUser?.uid ?? '',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (type == 'active_call') {
+      final callService = WebRtcCallService.instance;
+      if (callService.status == CallStatus.connected) {
+        callService.setMinimized(false);
+        if (callService.currentCallType == CallType.video) {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => VideoCallScreen(
+                callId: callService.currentCallId ?? '',
+                partnerUid: callService.currentPartnerUid ?? '',
+                partnerName: callService.currentPartnerName ?? 'Partner',
+                partnerPhoto: callService.currentPartnerPhoto,
+                isCaller: callService.currentRole == CallRole.caller,
+              ),
+            ),
+          );
+        } else {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(
+              builder: (_) => VoiceCallScreen(
+                callId: callService.currentCallId ?? '',
+                partnerUid: callService.currentPartnerUid ?? '',
+                partnerName: callService.currentPartnerName ?? 'Partner',
+                partnerPhoto: callService.currentPartnerPhoto,
+                isCaller: callService.currentRole == CallRole.caller,
+              ),
+            ),
+          );
+        }
+      }
+      return;
+    }
+
     if (type != 'chat_message') return;
 
     final conversationId = data['conversationId'] as String?;
@@ -598,6 +796,54 @@ class NotificationService {
           ),
         ),
       );
+    } catch (_) {}
+  }
+
+  /// Display persistent Android ongoing notification during active call to prevent background process termination
+  static Future<void> showOngoingCallNotification({
+    required String partnerName,
+    required String callType,
+  }) async {
+    if (!Platform.isAndroid) return;
+    try {
+      final androidDetails = AndroidNotificationDetails(
+        'astra_active_calls',
+        'Astra Active Calls',
+        channelDescription: 'Ongoing voice and video calls',
+        importance: Importance.low,
+        priority: Priority.low,
+        ongoing: true,
+        autoCancel: false,
+        showWhen: true,
+        usesChronometer: true,
+        category: AndroidNotificationCategory.call,
+        icon: 'ic_notification',
+      );
+      final details = NotificationDetails(android: androidDetails);
+      await _localNotifications.show(
+        id: ongoingCallNotificationId,
+        title: 'Astra $callType Call',
+        body: 'In call with $partnerName • Tap to return',
+        notificationDetails: details,
+        payload: jsonEncode({'type': 'active_call'}),
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] showOngoingCallNotification error: $e');
+    }
+  }
+
+  /// Cancel ongoing active call notification when call ends
+  static Future<void> cancelOngoingCallNotification() async {
+    if (!Platform.isAndroid) return;
+    try {
+      await _localNotifications.cancel(id: ongoingCallNotificationId);
+    } catch (_) {}
+  }
+
+  /// Cancel incoming call ringing notification
+  static Future<void> cancelIncomingCallNotification() async {
+    try {
+      await _localNotifications.cancel(id: incomingCallNotificationId);
     } catch (_) {}
   }
 

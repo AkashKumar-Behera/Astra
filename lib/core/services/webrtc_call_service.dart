@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 
 import 'call_sound_service.dart';
+import 'notification_service.dart';
 
 enum CallType { audio, video }
 enum CallRole { caller, receiver }
@@ -130,6 +132,9 @@ class WebRtcCallService {
   bool isMinimized = false;
   final StreamController<bool> _minimizedController = StreamController<bool>.broadcast();
   Stream<bool> get onMinimizedChanged => _minimizedController.stream;
+
+  final StreamController<bool> _screenShareController = StreamController<bool>.broadcast();
+  Stream<bool> get onScreenShareChanged => _screenShareController.stream;
 
   void setMinimized(bool val) {
     if (isMinimized != val) {
@@ -310,12 +315,19 @@ class WebRtcCallService {
         _peerConnection?.addTrack(track, _localStream!);
       });
 
-      _peerConnection?.onTrack = (RTCTrackEvent event) {
+      _peerConnection?.onTrack = (RTCTrackEvent event) async {
         debugPrint('[WebRtcCallService] onTrack kind=${event.track.kind}, streams=${event.streams.length}');
         event.track.enabled = true;
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
-          remoteRenderer.srcObject = _remoteStream;
+        } else {
+          _remoteStream ??= await createLocalMediaStream('remote_stream_${DateTime.now().millisecondsSinceEpoch}');
+          _remoteStream!.addTrack(event.track);
+        }
+        remoteRenderer.srcObject = _remoteStream;
+        if (event.track.kind == 'audio') {
+          _remoteStream?.getAudioTracks().forEach((t) => t.enabled = true);
+          Helper.setSpeakerphoneOn(isSpeakerOn);
         }
       };
 
@@ -366,11 +378,17 @@ class WebRtcCallService {
       });
 
       // 5. Send incoming call notification trigger in RTDB
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final callerDisplayName = (currentUser?.displayName != null && currentUser!.displayName!.trim().isNotEmpty)
+          ? currentUser.displayName!.trim()
+          : 'Partner';
+      final callerDisplayPhoto = currentUser?.photoURL;
+
       await _rtdb.ref('users/$partnerUid/incoming_call').set({
         'callId': callId,
         'callerUid': myUid,
-        'callerName': 'Partner',
-        'callerPhoto': partnerPhoto,
+        'callerName': callerDisplayName,
+        'callerPhoto': callerDisplayPhoto,
         'type': type.name,
         'timestamp': ServerValue.timestamp,
       });
@@ -457,12 +475,19 @@ class WebRtcCallService {
         _peerConnection?.addTrack(track, _localStream!);
       });
 
-      _peerConnection?.onTrack = (RTCTrackEvent event) {
+      _peerConnection?.onTrack = (RTCTrackEvent event) async {
         debugPrint('[WebRtcCallService] onTrack kind=${event.track.kind}, streams=${event.streams.length}');
         event.track.enabled = true;
         if (event.streams.isNotEmpty) {
           _remoteStream = event.streams[0];
-          remoteRenderer.srcObject = _remoteStream;
+        } else {
+          _remoteStream ??= await createLocalMediaStream('remote_stream_${DateTime.now().millisecondsSinceEpoch}');
+          _remoteStream!.addTrack(event.track);
+        }
+        remoteRenderer.srcObject = _remoteStream;
+        if (event.track.kind == 'audio') {
+          _remoteStream?.getAudioTracks().forEach((t) => t.enabled = true);
+          Helper.setSpeakerphoneOn(isSpeakerOn);
         }
       };
 
@@ -521,6 +546,7 @@ class WebRtcCallService {
 
       // Remove incoming call trigger
       await _rtdb.ref('users/$myUid/incoming_call').remove();
+      NotificationService.cancelIncomingCallNotification();
 
       _onCallConnected();
       _listenToCallStatus(callId, isCaller: false);
@@ -537,6 +563,7 @@ class WebRtcCallService {
     required String myUid,
   }) async {
     CallSoundService.instance.playEndedTone();
+    NotificationService.cancelIncomingCallNotification();
     try {
       await _rtdb.ref('calls/$callId').update({'status': 'declined'});
       await _rtdb.ref('users/$myUid/incoming_call').remove();
@@ -644,6 +671,11 @@ class WebRtcCallService {
     durationSeconds = 0;
     _updateStatus(CallStatus.connected);
     CallSoundService.instance.playConnectedChime();
+    NotificationService.cancelIncomingCallNotification();
+    NotificationService.showOngoingCallNotification(
+      partnerName: currentPartnerName ?? 'Partner',
+      callType: currentCallType == CallType.video ? 'Video' : 'Voice',
+    );
     Helper.setSpeakerphoneOn(isSpeakerOn);
 
     _localStream?.getAudioTracks().forEach((t) => t.enabled = !isMuted);
@@ -728,6 +760,8 @@ class WebRtcCallService {
         await _screenStream?.dispose();
         _screenStream = null;
         isScreenSharing = false;
+        _screenShareController.add(false);
+
         if (_localStream != null) {
           final videoTrack = _localStream!.getVideoTracks().firstOrNull;
           if (videoTrack != null) {
@@ -742,16 +776,27 @@ class WebRtcCallService {
           'video': true,
           'audio': false,
         });
-        final screenTrack = _screenStream!.getVideoTracks().first;
-        final senders = await _peerConnection!.getSenders();
-        final sender = senders.firstWhere((s) => s.track?.kind == 'video');
-        await sender.replaceTrack(screenTrack);
-        localRenderer.srcObject = _screenStream;
-        isScreenSharing = true;
+        if (_screenStream != null && _screenStream!.getVideoTracks().isNotEmpty) {
+          final screenTrack = _screenStream!.getVideoTracks().first;
+          screenTrack.onEnded = () async {
+            if (isScreenSharing) {
+              await toggleScreenShare();
+            }
+          };
+
+          final senders = await _peerConnection!.getSenders();
+          final sender = senders.firstWhere((s) => s.track?.kind == 'video');
+          await sender.replaceTrack(screenTrack);
+          localRenderer.srcObject = _screenStream;
+          isScreenSharing = true;
+          _screenShareController.add(true);
+        }
       }
       return true;
     } catch (e) {
       debugPrint('[WebRtcCallService] Error toggling screen share: $e');
+      isScreenSharing = false;
+      _screenShareController.add(false);
       return false;
     }
   }
@@ -807,6 +852,8 @@ class WebRtcCallService {
 
   Future<void> cleanUp() async {
     CallSoundService.instance.stop();
+    NotificationService.cancelIncomingCallNotification();
+    NotificationService.cancelOngoingCallNotification();
     _statsTimer?.cancel();
     _statsTimer = null;
     _durationTimer?.cancel();
@@ -830,6 +877,7 @@ class WebRtcCallService {
     } catch (_) {}
     _screenStream = null;
     isScreenSharing = false;
+    _screenShareController.add(false);
 
     try {
       _remoteStream?.getTracks().forEach((track) => track.stop());
