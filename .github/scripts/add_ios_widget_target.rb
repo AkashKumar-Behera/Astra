@@ -40,6 +40,7 @@ widget_group.set_path(widget_name)
 
 swift_file_ref = widget_group.new_file('FriendDistanceWidget.swift')
 info_plist_ref = widget_group.new_file('Info.plist')
+entitlements_ref = widget_group.new_file('FriendDistanceWidget.entitlements')
 
 # Add swift file to Sources build phase
 widget_target.source_build_phase.add_file_reference(swift_file_ref)
@@ -70,6 +71,7 @@ widget_target.build_configurations.each do |config|
   config.build_settings['PRODUCT_NAME'] = widget_name
   config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = widget_bundle_id
   config.build_settings['INFOPLIST_FILE'] = "#{widget_name}/Info.plist"
+  config.build_settings['CODE_SIGN_ENTITLEMENTS'] = "#{widget_name}/#{widget_name}.entitlements"
   config.build_settings['SWIFT_VERSION'] = '5.0'
   config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
   config.build_settings['CURRENT_PROJECT_VERSION'] = version_number
