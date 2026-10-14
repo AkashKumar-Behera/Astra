@@ -224,7 +224,7 @@ Future<void> showIncomingCallNotification({
       ],
     );
     final iosDetails = const DarwinNotificationDetails(
-      sound: 'astra_chime.aiff',
+      sound: 'astra_chime.wav',
       presentAlert: true,
       presentBadge: true,
       presentSound: true,
